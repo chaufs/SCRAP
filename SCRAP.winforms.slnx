@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="SCRAP.API/SCRAP.API.csproj" Id="6c1a86df-f475-4461-9e82-7bd6020f6d57" />
+  <Project Path="SCRAP.domain/SCRAP.domain.csproj" Id="e29a924f-e85c-4eba-a55b-9b4902c6b897" />
+  <Project Path="SCRAP.infrastructure/SCRAP.infrastructure.csproj" Id="912d085b-882d-472b-9cbb-1e3b1cad1168" />
+  <Project Path="SCRAP.winforms/SCRAP.winforms.csproj" />
+</Solution>

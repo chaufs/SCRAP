@@ -1,0 +1,15 @@
+[
+  {
+    "Name": "New Profile",
+    "Projects": [
+      {
+        "Path": "SCRAP.API\\SCRAP.API.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "SCRAP.winforms\\SCRAP.winforms.csproj",
+        "Action": "Start"
+      }
+    ]
+  }
+]

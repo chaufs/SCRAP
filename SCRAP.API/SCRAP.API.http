@@ -1,0 +1,169 @@
+@SCRAP.API_HostAddress = http://localhost:5153
+
+GET {{SCRAP.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
+
+POST {{SCRAP.API_HostAddress}}/companies
+Content-Type: application/json
+
+{
+
+ "companyCode": "COMP001",
+
+ "companyName": "My First Company",
+
+ "isActive": true,
+
+ "createdAt": "2026-09-03T09:15:00"
+
+}
+###
+POST {{SCRAP.API_HostAddress}}/devices
+Content-Type: application/json
+
+{
+
+ "companyId": 1,
+
+ "deviceCode": "DEV001",
+
+ "deviceName": "Main PC",
+
+ "isActive": true,
+
+ "createdAt": "2026-09-03T09:50:00"
+
+}
+###
+POST {{SCRAP.API_HostAddress}}/company-databases
+Content-Type: application/json
+{
+
+ "companyId": 1,
+
+ "serverName": "db66559.public.databaseasp.net",
+
+ "databaseName": "db66559",
+
+ "isActive": true
+
+}
+
+
+
+###
+GET https://localhost:7156/test-tenant/1
+
+Accept: application/json
+
+###
+POST https://localhost:7156/tenant/1/products
+Content-Type: application/json
+{
+
+ "productCode": "PROD001",
+
+ "productName": "Demo Product",
+
+ "unitPrice": 99.50,
+
+ "isActive": true
+
+}
+###
+GET https://localhost:7156/tenant/1/products
+Accept: application/json
+###
+
+###
+
+POST {{SCRAP.API_HostAddress}}/companies
+Content-Type: application/json
+
+{
+  "companyCode": "COMP002",
+  "companyName": "Tenant B Company",
+  "isActive": true,
+  "createdAt": "2026-09-13T09:00:00"
+}
+
+###
+
+POST {{SCRAP.API_HostAddress}}/companies
+Content-Type: application/json
+
+{
+  "companyCode": "COMP003",
+  "companyName": "Tenant C Company",
+  "isActive": true,
+  "createdAt": "2026-09-13T09:05:00"
+}
+
+###
+###
+
+POST {{SCRAP.API_HostAddress}}/api/Users
+Content-Type: application/json
+
+{
+  "fullName": "Admin User",
+  "email": "admin@scrap.local",
+  "username": "admin",
+  "passwordHash": "Admin@123",
+  "role": "Admin",
+  "isActive": true
+}
+
+###
+
+POST {{SCRAP.API_HostAddress}}/api/Users
+Content-Type: application/json
+
+{
+  "fullName": "Manager User",
+  "email": "manager@scrap.local",
+  "username": "manager",
+  "passwordHash": "Manager@123",
+  "role": "Manager",
+  "isActive": true
+}
+
+###
+
+POST {{SCRAP.API_HostAddress}}/api/Users
+Content-Type: application/json
+
+{
+  "fullName": "Tech User",
+  "email": "tech@scrap.local",
+  "username": "tech",
+  "passwordHash": "Tech@123",
+  "role": "TechStaff",
+  "isActive": true
+}
+
+###
+
+POST {{SCRAP.API_HostAddress}}/api/Users
+Content-Type: application/json
+
+{
+  "fullName": "Sales User",
+  "email": "sales@scrap.local",
+  "username": "sales",
+  "passwordHash": "Sales@123",
+  "role": "SalesStaff",
+  "isActive": true
+}
+
+###
+GET {{SCRAP.API_HostAddress}}/api/Auth/debug-users
+
+###
+POST {{SCRAP.API_HostAddress}}/api/Auth/debug-seed
+
+####
+###
+GET {{SCRAP.API_HostAddress}}/api/Auth/debug-users
