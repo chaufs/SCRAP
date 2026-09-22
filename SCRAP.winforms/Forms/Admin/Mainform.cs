@@ -11,7 +11,7 @@ namespace SCRAP.winforms
     /// </summary>
     public class MainForm : Form
     {
-        private Button btnUsers = null!;
+
         private Button btnHR = null!;
         private Panel sidebar = null!;
         private Panel contentHost = null!;
@@ -24,6 +24,7 @@ namespace SCRAP.winforms
         private Button btnCategories = null!;
         private Button btnInventory = null!;
         private Button btnReports = null!;
+        private Button btnFinance = null!;
         private Button? _activeNav;
 
         public MainForm()
@@ -111,8 +112,6 @@ namespace SCRAP.winforms
             btnInventory = Theme.CreateNavButton("Inventory", 216);
             btnInventory.Click += (s, e) => { SetActive(btnInventory); ShowInventory(0); };
 
-            btnUsers = Theme.CreateNavButton("User Management", 348);
-            btnUsers.Click += (s, e) => { SetActive(btnUsers); ShowUsers(); };
 
             btnHR = Theme.CreateNavButton("HR Management", 304);
             btnHR.Click += (s, e) => { SetActive(btnHR); ShowHR(); };
@@ -121,6 +120,9 @@ namespace SCRAP.winforms
 
             btnReports = Theme.CreateNavButton("Reports", 304);
             btnReports.Click += (s, e) => { SetActive(btnReports); ShowReports(); };
+
+            btnFinance = Theme.CreateNavButton("Company Finance", 348);
+            btnFinance.Click += (s, e) => { SetActive(btnFinance); ShowFinance(); };
 
             userArea = new Panel
             {
@@ -185,9 +187,10 @@ namespace SCRAP.winforms
             sidebar.Controls.Add(btnCategories);
             sidebar.Controls.Add(btnInventory);
             sidebar.Controls.Add(btnHR);
-            sidebar.Controls.Add(btnUsers);
+
             sidebar.Controls.Add(secAnalytics);
             sidebar.Controls.Add(btnReports);
+            sidebar.Controls.Add(btnFinance);
             sidebar.Controls.Add(userArea);
 
             Controls.Add(sidebar);
@@ -208,7 +211,7 @@ namespace SCRAP.winforms
 
         private void SetActive(Button btn)
         {
-            foreach (var b in new[] { btnDashboard, btnCategories, btnInventory, btnReports, btnHR, btnUsers })
+            foreach (var b in new[] { btnDashboard, btnCategories, btnInventory, btnReports, btnHR, btnFinance })
             {
                 b.BackColor = Theme.SidebarBg;
                 b.ForeColor = Theme.SidebarText;
@@ -217,10 +220,7 @@ namespace SCRAP.winforms
             btn.ForeColor = Theme.SidebarTextActive;
             _activeNav = btn;
         }
-        private void ShowUsers()
-        {
-            EmbedForm(new UserManagementForm { ShowInTaskbar = false });
-        }
+
 
         private void BuildContentHost()
         {
@@ -289,6 +289,12 @@ namespace SCRAP.winforms
         {
             EmbedForm(new ReportGenerationForm { ShowInTaskbar = false });
             SetActive(btnReports);
+        }
+
+        private void ShowFinance()
+        {
+            EmbedForm(new CompanyFinanceMonitorForm { ShowInTaskbar = false });
+            SetActive(btnFinance);
         }
     }
 }

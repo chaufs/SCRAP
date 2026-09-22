@@ -22,6 +22,9 @@ public class ManagerMainForm : Form
     private Button btnDashboard = null!;
     private Button btnCertificates = null!;
     private Button btnInventory = null!;
+    private Button btnAttendancePayroll = null!;
+    private Button btnFinance = null!;
+    private Button btnProcurement = null!;
     private Button? _activeNav;
 
     public ManagerMainForm()
@@ -106,6 +109,15 @@ public class ManagerMainForm : Form
         btnInventory = Theme.CreateNavButton("Inventory", 216);
         btnInventory.Click += (s, e) => { SetActive(btnInventory); ShowInventory(); };
 
+        btnAttendancePayroll = Theme.CreateNavButton("Attendance / Payroll", 260);
+        btnAttendancePayroll.Click += (s, e) => { SetActive(btnAttendancePayroll); ShowAttendancePayroll(); };
+
+        btnFinance = Theme.CreateNavButton("Company Finance", 304);
+        btnFinance.Click += (s, e) => { SetActive(btnFinance); ShowFinance(); };
+
+        btnProcurement = Theme.CreateNavButton("Procurement", 348);
+        btnProcurement.Click += (s, e) => { SetActive(btnProcurement); ShowProcurement(); };
+
         userArea = new Panel
         {
             Height = 92,
@@ -169,6 +181,9 @@ public class ManagerMainForm : Form
         sidebar.Controls.Add(btnDashboard);
         sidebar.Controls.Add(btnCertificates);
         sidebar.Controls.Add(btnInventory);
+        sidebar.Controls.Add(btnAttendancePayroll);
+        sidebar.Controls.Add(btnFinance);
+        sidebar.Controls.Add(btnProcurement);
         sidebar.Controls.Add(userArea);
 
         Controls.Add(sidebar);
@@ -192,7 +207,7 @@ public class ManagerMainForm : Form
 
     private void SetActive(Button btn)
     {
-        foreach (var b in new[] { btnDashboard, btnCertificates, btnInventory })
+        foreach (var b in new[] { btnDashboard, btnCertificates, btnInventory, btnAttendancePayroll, btnFinance, btnProcurement })
         {
             b.BackColor = Theme.SidebarBg;
             b.ForeColor = Theme.SidebarText;
@@ -244,5 +259,20 @@ public class ManagerMainForm : Form
     {
         // Manager: view-only inventory overview
         EmbedForm(new ManagerInventoryForm() { ShowInTaskbar = false });
+    }
+
+    private void ShowAttendancePayroll()
+    {
+        EmbedForm(new AttendancePayrollForm { ShowInTaskbar = false });
+    }
+
+    private void ShowFinance()
+    {
+        EmbedForm(new CompanyFinanceForm { ShowInTaskbar = false });
+    }
+
+    private void ShowProcurement()
+    {
+        EmbedForm(new ProcurementForm { ShowInTaskbar = false });
     }
 }

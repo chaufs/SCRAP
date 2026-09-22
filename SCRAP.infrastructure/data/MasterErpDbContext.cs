@@ -87,7 +87,11 @@ namespace SCRAP.infrastructure.data
                 entity.HasKey(x => x.Id);
                 entity.Property(x => x.DeviceName).HasMaxLength(200).IsRequired();
                 entity.Property(x => x.SerialNumber).HasMaxLength(200);
+                entity.Property(x => x.BatchCode).HasMaxLength(200);
+                entity.Property(x => x.PurchasedFrom).HasMaxLength(300);
+                entity.Property(x => x.PurchaseCost).HasColumnType("decimal(18,2)");
                 entity.Property(x => x.Notes).HasMaxLength(1000);
+                entity.HasIndex(x => x.BatchCode);
                 entity.HasOne(x => x.DeviceCategory).WithMany(d => d.InventoryItems).HasForeignKey(x => x.DeviceCategoryId).OnDelete(DeleteBehavior.Restrict);
             });
 
@@ -144,6 +148,18 @@ namespace SCRAP.infrastructure.data
                 entity.Property(x => x.BuyerName).HasMaxLength(200);
                 entity.Property(x => x.Notes).HasMaxLength(1000);
                 entity.Property(x => x.Amount).HasColumnType("decimal(18,2)");
+            });
+
+            builder.Entity<CompanyFinanceTransaction>(entity =>
+            {
+                entity.HasKey(x => x.Id);
+                entity.Property(x => x.Type).HasConversion<string>().HasMaxLength(20);
+                entity.Property(x => x.Category).HasMaxLength(100).IsRequired();
+                entity.Property(x => x.Amount).HasColumnType("decimal(18,2)");
+                entity.Property(x => x.Description).HasMaxLength(500).IsRequired();
+                entity.Property(x => x.SourceReference).HasMaxLength(100);
+                entity.HasIndex(x => x.SourceReference).IsUnique().HasFilter("[SourceReference] IS NOT NULL");
+                entity.HasIndex(x => x.TransactionDate);
             });
 
             // UserManagement
@@ -208,7 +224,9 @@ namespace SCRAP.infrastructure.data
                 entity.HasKey(x => x.Id);
                 entity.Property(x => x.EmployeeCode).HasMaxLength(50).IsRequired();
                 entity.HasIndex(x => x.EmployeeCode).IsUnique();
-                entity.Property(x => x.FullName).HasMaxLength(200).IsRequired();
+                entity.Property(x => x.FirstName).HasMaxLength(100).IsRequired();
+                entity.Property(x => x.MiddleName).HasMaxLength(100);
+                entity.Property(x => x.LastName).HasMaxLength(100).IsRequired();
                 entity.Property(x => x.ContactNumber).HasMaxLength(50);
                 entity.Property(x => x.EmailAddress).HasMaxLength(200);
                 entity.Property(x => x.Address).HasMaxLength(500);
@@ -216,6 +234,36 @@ namespace SCRAP.infrastructure.data
                 entity.Property(x => x.Department).HasMaxLength(200);
                 entity.Property(x => x.PayRate).HasColumnType("decimal(18,2)");
                 entity.Property(x => x.Notes).HasMaxLength(1000);
+            });
+
+            builder.Entity<AttendanceRecord>(entity =>
+            {
+                entity.HasKey(x => x.Id);
+                entity.Property(x => x.AttendanceDate).HasColumnType("date");
+                entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
+                entity.Property(x => x.Notes).HasMaxLength(500);
+                entity.HasIndex(x => new { x.EmployeeId, x.AttendanceDate }).IsUnique();
+                entity.HasOne(x => x.Employee).WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            builder.Entity<PaidLeaveRequest>(entity =>
+            {
+                entity.HasKey(x => x.Id);
+                entity.Property(x => x.StartDate).HasColumnType("date");
+                entity.Property(x => x.EndDate).HasColumnType("date");
+                entity.Property(x => x.DaysRequested).HasColumnType("decimal(18,2)");
+                entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
+                entity.Property(x => x.Reason).HasMaxLength(1000).IsRequired();
+                entity.HasOne(x => x.Employee).WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            builder.Entity<EmployeeLeaveBalance>(entity =>
+            {
+                entity.HasKey(x => x.Id);
+                entity.Property(x => x.MaximumPaidLeaveDays).HasColumnType("decimal(18,2)");
+                entity.Property(x => x.UsedPaidLeaveDays).HasColumnType("decimal(18,2)");
+                entity.HasIndex(x => new { x.EmployeeId, x.LeaveYear }).IsUnique();
+                entity.HasOne(x => x.Employee).WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Restrict);
             });
 
         }
@@ -242,9 +290,16 @@ namespace SCRAP.infrastructure.data
         public DbSet<TeardownYield> TeardownYields => Set<TeardownYield>();
 
         public DbSet<Sale> Sales => Set<Sale>();
+        public DbSet<CompanyFinanceTransaction> CompanyFinanceTransactions => Set<CompanyFinanceTransaction>();
 
         public DbSet<UserManagement> Users => Set<UserManagement>();
         public DbSet<CommoditySale> CommoditySales => Set<CommoditySale>();
+
+        public DbSet<AttendanceRecord> AttendanceRecords => Set<AttendanceRecord>();
+
+        public DbSet<PaidLeaveRequest> PaidLeaveRequests => Set<PaidLeaveRequest>();
+
+        public DbSet<EmployeeLeaveBalance> EmployeeLeaveBalances => Set<EmployeeLeaveBalance>();
     }
 
     

@@ -44,10 +44,9 @@ namespace SCRAP.API.Controllers
             if (employee.UserId != null)
                 return BadRequest(new Models.ErrorResponse { Message = "This employee is already linked to a login account." });
 
-            var nameParts = employee.FullName.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            var firstName = nameParts.Length > 0 ? nameParts[0] : employee.FullName;
-            var lastName = nameParts.Length > 1 ? nameParts[^1] : "";
-            var middleName = nameParts.Length > 2 ? string.Join(" ", nameParts.Skip(1).Take(nameParts.Length - 2)) : null;
+            var firstName = employee.FirstName.Trim();
+            var lastName = employee.LastName.Trim();
+            var middleName = string.IsNullOrWhiteSpace(employee.MiddleName) ? null : employee.MiddleName.Trim();
 
             var user = new UserManagement
             {

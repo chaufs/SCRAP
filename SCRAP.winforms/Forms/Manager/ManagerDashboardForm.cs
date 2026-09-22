@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
@@ -227,7 +227,7 @@ namespace SCRAP.winforms.Forms
                 var res = await ApiConfig.Http.GetAsync("api/StorageDestruction/pending");
                 if (res.IsSuccessStatusCode)
                 {
-                    var data = await res.Content.ReadFromJsonAsync<List<StorageDestructionRecord>>()
+                    var data = await res.Content.ReadFromJsonAsync<List<StorageDestructionRecord>>(ApiConfig.JsonOptions)
                                ?? new List<StorageDestructionRecord>();
                     valPending.Text = data.Count.ToString("N0");
                 }
@@ -245,7 +245,7 @@ namespace SCRAP.winforms.Forms
                 var res = await ApiConfig.Http.GetAsync("api/CertificateOfDestruction");
                 if (res.IsSuccessStatusCode)
                 {
-                    var data = await res.Content.ReadFromJsonAsync<List<CertificateOfDestruction>>()
+                    var data = await res.Content.ReadFromJsonAsync<List<CertificateOfDestruction>>(ApiConfig.JsonOptions)
                                ?? new List<CertificateOfDestruction>();
                     valCertificates.Text = data.Count.ToString("N0");
                     dgvRecent.DataSource = data;

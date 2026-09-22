@@ -41,6 +41,15 @@ namespace SCRAP.API.Controllers
             {
                 raw.CurrentTotalWeightKg -= sale.QuantityKg;
                 _db.Add(sale);
+                _db.CompanyFinanceTransactions.Add(new CompanyFinanceTransaction
+                {
+                    Type = FinanceTransactionType.Income,
+                    Category = "Sales Revenue",
+                    Amount = sale.TotalAmount,
+                    TransactionDate = sale.SaleDate.Date,
+                    Description = $"Commodity sale {sale.InvoiceNumber}",
+                    SourceReference = $"CommoditySaleInvoice:{sale.InvoiceNumber}"
+                });
                 await _db.SaveChangesAsync();
                 await tx.CommitAsync();
 

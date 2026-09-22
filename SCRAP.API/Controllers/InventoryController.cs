@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using SCRAP.domain.entities;
 using SCRAP.infrastructure.data;
@@ -33,6 +34,7 @@ namespace SCRAP.API.Controllers
             return Ok(summary);
         }
         [HttpPost]
+        [Authorize(Policy = "RequireManager")]
         public async Task<IActionResult> Create(Inventory item)
         {
             if (item.DateReceived == default) item.DateReceived = DateTime.UtcNow;

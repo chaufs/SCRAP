@@ -119,7 +119,8 @@ namespace SCRAP.winforms.Forms.Admin
         {
             dgvEmployees.Columns.Clear();
             dgvEmployees.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = nameof(Employee.EmployeeCode), HeaderText = "Code", Width = 100 });
-            dgvEmployees.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = nameof(Employee.FullName), HeaderText = "Full Name", Width = 200 });
+dgvEmployees.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = nameof(Employee.FirstName), HeaderText = "First Name", Width = 140 });
+dgvEmployees.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = nameof(Employee.LastName), HeaderText = "Last Name", Width = 140 });
             dgvEmployees.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = nameof(Employee.Position), HeaderText = "Position", Width = 160 });
             dgvEmployees.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = nameof(Employee.Department), HeaderText = "Department", Width = 130 });
             dgvEmployees.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = nameof(Employee.Status), HeaderText = "Status", Width = 110 });
@@ -179,6 +180,7 @@ namespace SCRAP.winforms.Forms.Admin
             await LoadSummary();
         }
 
+
         private async Task LoadSummary()
         {
             try
@@ -200,6 +202,7 @@ namespace SCRAP.winforms.Forms.Admin
             }
         }
 
+
         private async void DgvEmployees_CellContentClick(object? sender, DataGridViewCellEventArgs e)
         {
             if (e.RowIndex < 0) return;
@@ -209,7 +212,7 @@ namespace SCRAP.winforms.Forms.Admin
 
             if (columnName == "colManage")
             {
-                MessageBox.Show($"Manage screen for {emp.FullName} — hook up an edit dialog here next.",
+                MessageBox.Show($"Manage screen for {emp.FirstName} {emp.LastName} — hook up an edit dialog here next.",
                     "S.C.R.A.P", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 // TODO: open an edit dialog pre-filled with emp's data (position, department, pay, status, and
                 // account fields if emp.UserId != null), PUT to api/Employees/{id} on save.
@@ -217,7 +220,7 @@ namespace SCRAP.winforms.Forms.Admin
             else if (columnName == "colArchive")
             {
                 var action = emp.Status == EmploymentStatus.Active ? "archive" : "reactivate";
-                var confirm = MessageBox.Show($"Are you sure you want to {action} {emp.FullName}?", "Confirm",
+                var confirm = MessageBox.Show($"Are you sure you want to {action} {emp.FirstName} {emp.LastName}?", "Confirm",
                     MessageBoxButtons.YesNo, MessageBoxIcon.Question);
                 if (confirm != DialogResult.Yes) return;
 

@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SCRAP.infrastructure.data;
 
@@ -11,9 +12,11 @@ using SCRAP.infrastructure.data;
 namespace SCRAP.infrastructure.Migrations
 {
     [DbContext(typeof(MasterErpDbContext))]
-    partial class MasterErpDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260921232056_SyncEmployeeNameFields")]
+    partial class SyncEmployeeNameFields
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -246,43 +249,6 @@ namespace SCRAP.infrastructure.Migrations
                     b.ToTable("ArchetypeRecipes");
                 });
 
-            modelBuilder.Entity("SCRAP.domain.entities.AttendanceRecord", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("AttendanceDate")
-                        .HasColumnType("date");
-
-                    b.Property<int>("EmployeeId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("MarkedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int?>("MarkedByUserId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Notes")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("EmployeeId", "AttendanceDate")
-                        .IsUnique();
-
-                    b.ToTable("AttendanceRecords");
-                });
-
             modelBuilder.Entity("SCRAP.domain.entities.CertificateOfDestruction", b =>
                 {
                     b.Property<int>("Id")
@@ -508,53 +474,6 @@ namespace SCRAP.infrastructure.Migrations
                     b.ToTable("CompanyDatabases");
                 });
 
-            modelBuilder.Entity("SCRAP.domain.entities.CompanyFinanceTransaction", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<decimal>("Amount")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<string>("Category")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<int?>("RecordedByUserId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("SourceReference")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<DateTime>("TransactionDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Type")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("SourceReference")
-                        .IsUnique()
-                        .HasFilter("[SourceReference] IS NOT NULL");
-
-                    b.HasIndex("TransactionDate");
-
-                    b.ToTable("CompanyFinanceTransactions");
-                });
-
             modelBuilder.Entity("SCRAP.domain.entities.Device", b =>
                 {
                     b.Property<int>("DeviceId")
@@ -682,34 +601,6 @@ namespace SCRAP.infrastructure.Migrations
                     b.ToTable("Employee");
                 });
 
-            modelBuilder.Entity("SCRAP.domain.entities.EmployeeLeaveBalance", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("EmployeeId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("LeaveYear")
-                        .HasColumnType("int");
-
-                    b.Property<decimal>("MaximumPaidLeaveDays")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("UsedPaidLeaveDays")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("EmployeeId", "LeaveYear")
-                        .IsUnique();
-
-                    b.ToTable("EmployeeLeaveBalances");
-                });
-
             modelBuilder.Entity("SCRAP.domain.entities.Inventory", b =>
                 {
                     b.Property<int>("Id")
@@ -717,10 +608,6 @@ namespace SCRAP.infrastructure.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("BatchCode")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
 
                     b.Property<DateTime>("DateReceived")
                         .HasColumnType("datetime2");
@@ -740,19 +627,6 @@ namespace SCRAP.infrastructure.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
 
-                    b.Property<int?>("ProcurementQuantity")
-                        .HasColumnType("int");
-
-                    b.Property<decimal?>("PurchaseCost")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<DateTime?>("PurchaseDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("PurchasedFrom")
-                        .HasMaxLength(300)
-                        .HasColumnType("nvarchar(300)");
-
                     b.Property<string>("SerialNumber")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -763,57 +637,9 @@ namespace SCRAP.infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("BatchCode");
-
                     b.HasIndex("DeviceCategoryId");
 
                     b.ToTable("Inventories");
-                });
-
-            modelBuilder.Entity("SCRAP.domain.entities.PaidLeaveRequest", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime?>("ApprovedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int?>("ApprovedByUserId")
-                        .HasColumnType("int");
-
-                    b.Property<decimal>("DaysRequested")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<int>("EmployeeId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("EndDate")
-                        .HasColumnType("date");
-
-                    b.Property<string>("Reason")
-                        .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
-                    b.Property<int?>("RequestedByUserId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("StartDate")
-                        .HasColumnType("date");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("EmployeeId");
-
-                    b.ToTable("PaidLeaveRequests");
                 });
 
             modelBuilder.Entity("SCRAP.domain.entities.RawInventory", b =>
@@ -1100,17 +926,6 @@ namespace SCRAP.infrastructure.Migrations
                     b.Navigation("DeviceCategory");
                 });
 
-            modelBuilder.Entity("SCRAP.domain.entities.AttendanceRecord", b =>
-                {
-                    b.HasOne("SCRAP.domain.entities.Employee", "Employee")
-                        .WithMany()
-                        .HasForeignKey("EmployeeId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Employee");
-                });
-
             modelBuilder.Entity("SCRAP.domain.entities.CertificateOfDestructionItem", b =>
                 {
                     b.HasOne("SCRAP.domain.entities.CertificateOfDestruction", "CertificateOfDestruction")
@@ -1144,17 +959,6 @@ namespace SCRAP.infrastructure.Migrations
                     b.Navigation("Company");
                 });
 
-            modelBuilder.Entity("SCRAP.domain.entities.EmployeeLeaveBalance", b =>
-                {
-                    b.HasOne("SCRAP.domain.entities.Employee", "Employee")
-                        .WithMany()
-                        .HasForeignKey("EmployeeId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Employee");
-                });
-
             modelBuilder.Entity("SCRAP.domain.entities.Inventory", b =>
                 {
                     b.HasOne("SCRAP.domain.entities.DeviceCategory", "DeviceCategory")
@@ -1164,17 +968,6 @@ namespace SCRAP.infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("DeviceCategory");
-                });
-
-            modelBuilder.Entity("SCRAP.domain.entities.PaidLeaveRequest", b =>
-                {
-                    b.HasOne("SCRAP.domain.entities.Employee", "Employee")
-                        .WithMany()
-                        .HasForeignKey("EmployeeId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Employee");
                 });
 
             modelBuilder.Entity("SCRAP.domain.entities.StorageDestructionRecord", b =>

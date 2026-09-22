@@ -11,7 +11,9 @@ namespace SCRAP.winforms.Forms.Admin
     [DesignerCategory("Code")]
     public class EmployeeEditDialog : Form
     {
-        private TextBox txtFullName = null!;
+        private TextBox txtFirstName = null!;
+        private TextBox txtMiddleName = null!;
+        private TextBox txtLastName = null!;
         private TextBox txtPosition = null!;
         private ComboBox cmbDepartment = null!;
         private TextBox txtContact = null!;
@@ -26,7 +28,6 @@ namespace SCRAP.winforms.Forms.Admin
         private TextBox txtUsername = null!;
         private TextBox txtAccountEmail = null!;
         private TextBox txtPassword = null!;
-        private ComboBox cmbRole = null!;
 
         private Button btnSave = null!;
         private Button btnCancel = null!;
@@ -48,8 +49,17 @@ namespace SCRAP.winforms.Forms.Admin
         {
             int top = 20;
 
-            var lblFull = MakeLabel("Full Name", top);
-            txtFullName = MakeText(top + 20);
+            var lblFirst = MakeLabel("First Name", top);
+            txtFirstName = new TextBox { Left = 20, Top = top + 20, Width = 190 };
+            Theme.StyleTextBox(txtFirstName);
+
+            var lblMiddle = MakeLabel("Middle Name", top, 220);
+            txtMiddleName = new TextBox { Left = 220, Top = top + 20, Width = 100, PlaceholderText = "optional" };
+            Theme.StyleTextBox(txtMiddleName);
+
+            var lblLast = MakeLabel("Last Name", top, 330);
+            txtLastName = new TextBox { Left = 330, Top = top + 20, Width = 110 };
+            Theme.StyleTextBox(txtLastName);
             top += 56;
 
             var lblPos = MakeLabel("Position", top);
@@ -106,12 +116,7 @@ namespace SCRAP.winforms.Forms.Admin
             txtPassword = new TextBox { Left = 0, Top = 76, Width = 200, PasswordChar = '•' };
             Theme.StyleTextBox(txtPassword);
 
-            var lblRole = new Label { Text = "Role", Left = 220, Top = 56, Width = 200, ForeColor = Theme.MutedText };
-            cmbRole = new ComboBox { Left = 220, Top = 76, Width = 200, DropDownStyle = ComboBoxStyle.DropDownList };
-            Theme.StyleComboBox(cmbRole);
-            cmbRole.Items.AddRange(new object[] { UserRole.Manager, UserRole.Tech, UserRole.Sales });
-
-            accountPanel.Controls.AddRange(new Control[] { lblUser, txtUsername, lblAcctEmail, txtAccountEmail, lblPass, txtPassword, lblRole, cmbRole });
+            accountPanel.Controls.AddRange(new Control[] { lblUser, txtUsername, lblAcctEmail, txtAccountEmail, lblPass, txtPassword });
             top += 180;
 
             btnSave = new Button { Text = "Save", Left = 240, Top = top, Width = 90, Height = 34 };
@@ -124,7 +129,7 @@ namespace SCRAP.winforms.Forms.Admin
 
             Controls.AddRange(new Control[]
             {
-                lblFull, txtFullName, lblPos, txtPosition, lblDept, cmbDepartment,
+                lblFirst, txtFirstName, lblMiddle, txtMiddleName, lblLast, txtLastName, lblPos, txtPosition, lblDept, cmbDepartment,
                 lblContact, txtContact, lblEmail, txtEmail, lblAddress, txtAddress,
                 lblHired, dtpHired, lblPayType, cmbPayType, lblRate, txtPayRate,
                 chkCreateAccount, accountPanel, btnSave, btnCancel
@@ -153,9 +158,9 @@ namespace SCRAP.winforms.Forms.Admin
 
         private async Task Save()
         {
-            if (string.IsNullOrWhiteSpace(txtFullName.Text) || string.IsNullOrWhiteSpace(txtPosition.Text))
+            if (string.IsNullOrWhiteSpace(txtFirstName.Text) || string.IsNullOrWhiteSpace(txtLastName.Text) || string.IsNullOrWhiteSpace(txtPosition.Text))
             {
-                MessageBox.Show("Full name and position are required.", "S.C.R.A.P",
+                MessageBox.Show("First name, last name, and position are required.", "S.C.R.A.P",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
@@ -177,30 +182,25 @@ namespace SCRAP.winforms.Forms.Admin
                         MessageBoxButtons.OK, MessageBoxIcon.Information);
                     return;
                 }
-                if (cmbRole.SelectedItem is null)
-                {
-                    MessageBox.Show("Select a role for the account.", "S.C.R.A.P",
-                        MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    return;
-                }
             }
 
             var payload = new
             {
-                FullName = txtFullName.Text.Trim(),
+                FirstName = txtFirstName.Text.Trim(),
+                MiddleName = string.IsNullOrWhiteSpace(txtMiddleName.Text) ? null : txtMiddleName.Text.Trim(),
+                LastName = txtLastName.Text.Trim(),
                 ContactNumber = string.IsNullOrWhiteSpace(txtContact.Text) ? null : txtContact.Text.Trim(),
                 EmailAddress = string.IsNullOrWhiteSpace(txtEmail.Text) ? null : txtEmail.Text.Trim(),
                 Address = string.IsNullOrWhiteSpace(txtAddress.Text) ? null : txtAddress.Text.Trim(),
                 Position = txtPosition.Text.Trim(),
-                Department = cmbDepartment.SelectedItem!.ToString(),
+                Department = cmbDepartment.SelectedItem?.ToString() ?? string.Empty,
                 DateHired = dtpHired.Value,
-                PayType = (PayType)cmbPayType.SelectedItem!,
+                PayType = cmbPayType.SelectedItem is PayType selectedPayType ? selectedPayType : PayType.Monthly,
                 PayRate = rate,
                 CreateAccount = chkCreateAccount.Checked,
                 Username = chkCreateAccount.Checked ? txtUsername.Text.Trim() : null,
                 AccountEmail = chkCreateAccount.Checked && !string.IsNullOrWhiteSpace(txtAccountEmail.Text) ? txtAccountEmail.Text.Trim() : null,
                 Password = chkCreateAccount.Checked ? txtPassword.Text : null,
-                Role = chkCreateAccount.Checked ? (UserRole?)cmbRole.SelectedItem! : null
             };
 
             btnSave.Enabled = false;

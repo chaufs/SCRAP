@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
@@ -9,7 +9,7 @@ using SCRAP.domain.entities;
 
 namespace SCRAP.winforms.Forms
 {
-    /// <summary>Technical inventory — can add devices + view commodities.</summary>
+    /// <summary>Technical inventory — view inventory and recovered commodities.</summary>
     [DesignerCategory("Code")]
     public class TechnicalInventoryForm : Form
     {
@@ -21,13 +21,6 @@ namespace SCRAP.winforms.Forms
         private DataGridView dgvCommodities = null!;
         private Panel cardActive = null!;
         private Panel cardCommodities = null!;
-        private Panel addBar = null!;
-        private TextBox txtDeviceName = null!;
-        private ComboBox cmbCategory = null!;
-        private TextBox txtSerial = null!;
-        private TextBox txtNotes = null!;
-        private CheckBox chkHasStorage = null!;
-        private Button btnAdd = null!;
 
         public TechnicalInventoryForm()
         {
@@ -36,7 +29,6 @@ namespace SCRAP.winforms.Forms
             BackColor = Theme.Background;
             Dock = DockStyle.Fill;
             InitializeComponent();
-            _ = LoadCategories();
             _ = LoadActive();
         }
 
@@ -87,54 +79,11 @@ namespace SCRAP.winforms.Forms
             var tabActive = new TabPage("Active Inventory") { BackColor = Theme.Background, Padding = new Padding(0) };
             var tabComm = new TabPage("Recovered Commodities") { BackColor = Theme.Background, Padding = new Padding(0) };
 
-            addBar = new Panel
-            {
-                Height = 56,
-                Dock = DockStyle.Top,
-                BackColor = Theme.Background
-            };
-            txtDeviceName = new TextBox { Width = 150, PlaceholderText = "Device name", Height = 32 };
-            cmbCategory = new ComboBox
-            {
-                Width = 160,
-                DropDownStyle = ComboBoxStyle.DropDownList,
-                DisplayMember = "Name",
-                ValueMember = "Id",
-                Height = 32
-            };
-            txtSerial = new TextBox { Width = 140, PlaceholderText = "Serial number", Height = 32 };
-            txtNotes = new TextBox { Width = 140, PlaceholderText = "Notes", Height = 32 };
-            chkHasStorage = new CheckBox
-            {
-                Text = "Has HDD/SSD",
-                Width = 130,
-                Height = 32,
-                AutoSize = true,
-                Font = Theme.LabelFont,
-                ForeColor = Theme.DarkText,
-                BackColor = Color.Transparent
-            };
-            btnAdd = new Button { Text = "+  Add Device", Width = 130, Height = 36 };
-            Theme.StylePrimaryButton(btnAdd);
-            btnAdd.Click += async (s, e) => await AddInventoryItem();
-            Theme.StyleTextBox(txtDeviceName);
-            Theme.StyleComboBox(cmbCategory);
-            Theme.StyleTextBox(txtSerial);
-            Theme.StyleTextBox(txtNotes);
-            addBar.Controls.Add(txtDeviceName);
-            addBar.Controls.Add(cmbCategory);
-            addBar.Controls.Add(txtSerial);
-            addBar.Controls.Add(txtNotes);
-            addBar.Controls.Add(chkHasStorage);
-            addBar.Controls.Add(btnAdd);
-            LayoutAddBar();
-
             cardActive = MakeCard();
             dgvActive = new DataGridView { Dock = DockStyle.Fill };
             Theme.StyleGrid(dgvActive);
             cardActive.Controls.Add(dgvActive);
             tabActive.Controls.Add(cardActive);
-            tabActive.Controls.Add(addBar);
 
             cardCommodities = MakeCard();
             dgvCommodities = new DataGridView { Dock = DockStyle.Fill };
@@ -168,16 +117,6 @@ namespace SCRAP.winforms.Forms
             return p;
         }
 
-        private void LayoutAddBar()
-        {
-            int x = 0, y = 12;
-            txtDeviceName.Left = x; txtDeviceName.Top = y; x += txtDeviceName.Width + 10;
-            cmbCategory.Left = x; cmbCategory.Top = y; x += cmbCategory.Width + 10;
-            txtSerial.Left = x; txtSerial.Top = y; x += txtSerial.Width + 10;
-            txtNotes.Left = x; txtNotes.Top = y; x += txtNotes.Width + 12;
-            chkHasStorage.Left = x; chkHasStorage.Top = y + 4; x += chkHasStorage.PreferredSize.Width + 12;
-            btnAdd.Left = x; btnAdd.Top = y - 2;
-        }
 
         private void LayoutPage()
         {
@@ -227,21 +166,6 @@ namespace SCRAP.winforms.Forms
                 "TeardownBatch", "TeardownBatchNavigation");
         }
 
-        private async Task LoadCategories()
-        {
-            try
-            {
-                var res = await ApiConfig.Http.GetAsync("api/DeviceCategories");
-                if (res.IsSuccessStatusCode)
-                    cmbCategory.DataSource = await res.Content.ReadFromJsonAsync<List<DeviceCategory>>();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Error loading categories: " + ex.Message, "S.C.R.A.P",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-
         private async Task LoadActive()
         {
             try
@@ -249,7 +173,7 @@ namespace SCRAP.winforms.Forms
                 var res = await ApiConfig.Http.GetAsync("api/Inventory");
                 if (res.IsSuccessStatusCode)
                 {
-                    dgvActive.DataSource = await res.Content.ReadFromJsonAsync<List<Inventory>>();
+                    dgvActive.DataSource = await res.Content.ReadFromJsonAsync<List<Inventory>>(ApiConfig.JsonOptions);
                     ConfigureActiveColumns();
                 }
             }
@@ -278,44 +202,5 @@ namespace SCRAP.winforms.Forms
             }
         }
 
-        private async Task AddInventoryItem()
-        {
-            if (string.IsNullOrWhiteSpace(txtDeviceName.Text) || cmbCategory.SelectedValue is not int categoryId)
-            {
-                MessageBox.Show("Device name and category are required.", "S.C.R.A.P",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
-            }
-            var item = new Inventory
-            {
-                DeviceName = txtDeviceName.Text,
-                DeviceCategoryId = categoryId,
-                SerialNumber = txtSerial.Text,
-                Notes = txtNotes.Text,
-                Status = InventoryStatus.InStock,
-                DateReceived = DateTime.UtcNow,
-                HasStorageDevice = chkHasStorage.Checked
-            };
-            try
-            {
-                var res = await ApiConfig.Http.PostAsJsonAsync("api/Inventory", item);
-                if (res.IsSuccessStatusCode)
-                {
-                    txtDeviceName.Clear();
-                    txtSerial.Clear();
-                    txtNotes.Clear();
-                    chkHasStorage.Checked = false;
-                    await LoadActive();
-                }
-                else
-                    MessageBox.Show("Add failed: " + res.StatusCode, "S.C.R.A.P",
-                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Error adding device: " + ex.Message, "S.C.R.A.P",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
     }
 }

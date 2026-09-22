@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
@@ -182,7 +182,7 @@ namespace SCRAP.winforms.Forms
                 var res = await ApiConfig.Http.GetAsync("api/Inventory");
                 if (res.IsSuccessStatusCode)
                 {
-                    dgvActive.DataSource = await res.Content.ReadFromJsonAsync<List<Inventory>>();
+                    dgvActive.DataSource = await res.Content.ReadFromJsonAsync<List<Inventory>>(ApiConfig.JsonOptions);
                     ConfigureActiveColumns();
                 }
             }

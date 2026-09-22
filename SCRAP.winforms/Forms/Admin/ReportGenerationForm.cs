@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -202,7 +202,7 @@ namespace SCRAP.winforms.Forms.Admin
                 var res = await ApiConfig.Http.GetAsync("api/Reports/inventory-history");
                 if (res.IsSuccessStatusCode)
                 {
-                    var data = await res.Content.ReadFromJsonAsync<List<Inventory>>() ?? new List<Inventory>();
+                    var data = await res.Content.ReadFromJsonAsync<List<Inventory>>(ApiConfig.JsonOptions) ?? new List<Inventory>();
                     dgvInventory.DataSource = null;
                     dgvInventory.DataSource = data;
                 }

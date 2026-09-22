@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SCRAP.infrastructure.data;
 
@@ -11,9 +12,11 @@ using SCRAP.infrastructure.data;
 namespace SCRAP.infrastructure.Migrations
 {
     [DbContext(typeof(MasterErpDbContext))]
-    partial class MasterErpDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260922002743_AddAttendanceLeaveAndPayroll")]
+    partial class AddAttendanceLeaveAndPayroll
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -508,53 +511,6 @@ namespace SCRAP.infrastructure.Migrations
                     b.ToTable("CompanyDatabases");
                 });
 
-            modelBuilder.Entity("SCRAP.domain.entities.CompanyFinanceTransaction", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<decimal>("Amount")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<string>("Category")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<int?>("RecordedByUserId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("SourceReference")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<DateTime>("TransactionDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Type")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("SourceReference")
-                        .IsUnique()
-                        .HasFilter("[SourceReference] IS NOT NULL");
-
-                    b.HasIndex("TransactionDate");
-
-                    b.ToTable("CompanyFinanceTransactions");
-                });
-
             modelBuilder.Entity("SCRAP.domain.entities.Device", b =>
                 {
                     b.Property<int>("DeviceId")
@@ -718,10 +674,6 @@ namespace SCRAP.infrastructure.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("BatchCode")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
                     b.Property<DateTime>("DateReceived")
                         .HasColumnType("datetime2");
 
@@ -740,19 +692,6 @@ namespace SCRAP.infrastructure.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
 
-                    b.Property<int?>("ProcurementQuantity")
-                        .HasColumnType("int");
-
-                    b.Property<decimal?>("PurchaseCost")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<DateTime?>("PurchaseDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("PurchasedFrom")
-                        .HasMaxLength(300)
-                        .HasColumnType("nvarchar(300)");
-
                     b.Property<string>("SerialNumber")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -762,8 +701,6 @@ namespace SCRAP.infrastructure.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("BatchCode");
 
                     b.HasIndex("DeviceCategoryId");
 

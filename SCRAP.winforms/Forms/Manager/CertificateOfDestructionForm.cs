@@ -1,4 +1,4 @@
-﻿using SCRAP.domain.entities;
+using SCRAP.domain.entities;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -35,6 +35,7 @@ namespace SCRAP.winforms.Forms.Destruction
         private ComboBox cmbMethod = null!;
         private TextBox txtSecurityStandard = null!;
         private TextBox txtVerifiedBy = null!;
+        private TextBox txtProcuredFrom = null!;
         private Label lblSelectedCount = null!;
         private Button btnGenerate = null!;
         private Panel cardPending = null!;
@@ -112,7 +113,7 @@ namespace SCRAP.winforms.Forms.Destruction
             formPanel = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 160,
+                Height = 220,
                 BackColor = Theme.Background
             };
 
@@ -185,11 +186,26 @@ namespace SCRAP.winforms.Forms.Destruction
             Theme.StylePrimaryButton(btnGenerate);
             btnGenerate.Click += async (s, e) => await GenerateCertificate();
 
+            // Row 3 — inherited from procurement (read-only)
+            var lblProcuredFrom = MakeFieldLabel("Procured / Sourced From (auto-filled)", 0, 132);
+            txtProcuredFrom = new TextBox
+            {
+                Left = 0,
+                Top = 152,
+                Width = 440,
+                Height = 32,
+                PlaceholderText = "Select drive(s) above to auto-fill",
+                ReadOnly = true,
+                BackColor = System.Drawing.Color.FromArgb(240, 240, 240)
+            };
+            Theme.StyleTextBox(txtProcuredFrom);
+            txtProcuredFrom.BackColor = System.Drawing.Color.FromArgb(240, 240, 240);
+
             lblSelectedCount = new Label
             {
                 Text = "0 drives selected",
-                Left = 0,
-                Top = 132,
+                Left = 460,
+                Top = 158,
                 Width = 280,
                 Height = 22,
                 Font = Theme.StatLabelFont,
@@ -208,6 +224,8 @@ namespace SCRAP.winforms.Forms.Destruction
             formPanel.Controls.Add(lblVerifiedBy);
             formPanel.Controls.Add(txtVerifiedBy);
             formPanel.Controls.Add(btnGenerate);
+            formPanel.Controls.Add(lblProcuredFrom);
+            formPanel.Controls.Add(txtProcuredFrom);
             formPanel.Controls.Add(lblSelectedCount);
 
             // Pending drives section
@@ -430,6 +448,16 @@ namespace SCRAP.winforms.Forms.Destruction
         {
             var count = dgvPending.SelectedRows.Count;
             lblSelectedCount.Text = $"{count} drive{(count == 1 ? "" : "s")} selected";
+
+            // Auto-inherit the procurement source from the selected devices
+            var sources = dgvPending.SelectedRows
+                .Cast<DataGridViewRow>()
+                .Select(r => (r.DataBoundItem as PendingItemRow)?.PurchasedFrom ?? "")
+                .Where(s => !string.IsNullOrWhiteSpace(s))
+                .Distinct()
+                .ToList();
+
+            txtProcuredFrom.Text = sources.Count > 0 ? string.Join(", ", sources) : "";
         }
 
         private async Task LoadPending()
@@ -439,7 +467,7 @@ namespace SCRAP.winforms.Forms.Destruction
                 var res = await ApiConfig.Http.GetAsync("api/StorageDestruction/pending");
                 if (res.IsSuccessStatusCode)
                 {
-                    var data = await res.Content.ReadFromJsonAsync<List<StorageDestructionRecord>>()
+                    var data = await res.Content.ReadFromJsonAsync<List<StorageDestructionRecord>>(ApiConfig.JsonOptions)
                                ?? new List<StorageDestructionRecord>();
 
                     pendingRows = new BindingList<PendingItemRow>(data.Select(r => new PendingItemRow
@@ -448,6 +476,7 @@ namespace SCRAP.winforms.Forms.Destruction
                         SerialNumber = r.Inventory?.SerialNumber ?? "",
                         DeviceType = r.Inventory?.DeviceCategory?.Name ?? "",
                         Model = r.Inventory?.DeviceName ?? "",
+                        PurchasedFrom = r.Inventory?.PurchasedFrom ?? "",
                         CreatedAt = r.CreatedAt
                     }).ToList());
 
@@ -475,7 +504,7 @@ namespace SCRAP.winforms.Forms.Destruction
                 var res = await ApiConfig.Http.GetAsync("api/CertificateOfDestruction");
                 if (res.IsSuccessStatusCode)
                 {
-                    var data = await res.Content.ReadFromJsonAsync<List<CertificateOfDestruction>>()
+                    var data = await res.Content.ReadFromJsonAsync<List<CertificateOfDestruction>>(ApiConfig.JsonOptions)
                                ?? new List<CertificateOfDestruction>();
                     dgvHistory.DataSource = null;
                     dgvHistory.DataSource = data;
@@ -594,7 +623,7 @@ namespace SCRAP.winforms.Forms.Destruction
                 var res = await ApiConfig.Http.PostAsJsonAsync("api/CertificateOfDestruction", request);
                 if (res.IsSuccessStatusCode)
                 {
-                    var created = await res.Content.ReadFromJsonAsync<CertificateOfDestruction>();
+                    var created = await res.Content.ReadFromJsonAsync<CertificateOfDestruction>(ApiConfig.JsonOptions);
                     MessageBox.Show(
                         $"Certificate generated: {created?.CertificateNumber}",
                         "S.C.R.A.P", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -627,6 +656,7 @@ namespace SCRAP.winforms.Forms.Destruction
             txtProviderAddress.Clear();
             txtSecurityStandard.Clear();
             txtVerifiedBy.Clear();
+            txtProcuredFrom.Clear();
             // keep provider name default
             if (string.IsNullOrWhiteSpace(txtProviderName.Text))
                 txtProviderName.Text = "EcoExtract Co.";
@@ -638,6 +668,7 @@ namespace SCRAP.winforms.Forms.Destruction
             public string SerialNumber { get; set; } = "";
             public string DeviceType { get; set; } = "";
             public string Model { get; set; } = "";
+            public string PurchasedFrom { get; set; } = "";
             public DateTime CreatedAt { get; set; }
         }
 

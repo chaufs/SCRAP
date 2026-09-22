@@ -21,7 +21,8 @@ namespace SCRAP.winforms
         public static HttpClient Http => _http.Value;
         public static readonly JsonSerializerOptions JsonOptions = new()
         {
-            Converters = { new JsonStringEnumConverter() }
+            Converters = { new JsonStringEnumConverter() },
+            PropertyNameCaseInsensitive = true
         };
 
         // Set the current API user header for the simple ApiKeyAuthHandler

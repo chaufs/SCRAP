@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
@@ -393,10 +393,9 @@ namespace SCRAP.winforms
         public static void StyleComboBox(ComboBox cmb)
         {
             cmb.Font = LabelFont;
-            cmb.FlatStyle = FlatStyle.Flat;
+            cmb.FlatStyle = FlatStyle.Standard;
             cmb.BackColor = White;
             cmb.ForeColor = DarkText;
-            cmb.Height = 32;
         }
 
         public static void StyleNumericUpDown(NumericUpDown num)

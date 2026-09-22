@@ -58,6 +58,7 @@ builder.Services.AddAuthorization(options =>
 builder.Services.AddScoped<ITenantDbContextFactory, TenantDbContextFactory>();
 builder.Services.AddScoped<ITenantDatabaseResolver, TenantDatabaseResolver>();
 builder.Services.AddScoped<ITenantDbContextFactory, TenantDbContextFactory>();
+builder.Services.AddScoped<SCRAP.API.Services.PayrollCalculator>();
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
