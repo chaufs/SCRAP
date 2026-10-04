@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SCRAP.domain.entities;
 using SCRAP.infrastructure.data;
@@ -9,8 +9,8 @@ namespace SCRAP.API.Controllers
     [Route("api/[controller]")]
     public class StorageDestructionController : ControllerBase
     {
-        private readonly MasterErpDbContext _db;
-        public StorageDestructionController(MasterErpDbContext db) => _db = db;
+        private readonly TenantErpDbContext _db;
+        public StorageDestructionController(TenantErpDbContext db) => _db = db;
 
         [HttpGet("pending")]
         public async Task<IActionResult> GetPending() =>

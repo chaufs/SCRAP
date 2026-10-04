@@ -36,6 +36,47 @@ namespace SCRAP.winforms
         public static readonly Color GridHeaderBg = ColorTranslator.FromHtml("#F1F5F9");
         public static readonly Color GridLine = ColorTranslator.FromHtml("#F1F5F9");
 
+        private static Image? _appLogo;
+        public static Image? AppLogo
+        {
+            get
+            {
+                if (_appLogo != null) return _appLogo;
+                try
+                {
+                    var asm = typeof(Theme).Assembly;
+                    foreach (var name in asm.GetManifestResourceNames())
+                    {
+                        if (name.EndsWith("logo.png", StringComparison.OrdinalIgnoreCase))
+                        {
+                            using var stream = asm.GetManifestResourceStream(name);
+                            if (stream != null)
+                            {
+                                _appLogo = Image.FromStream(stream);
+                                return _appLogo;
+                            }
+                        }
+                    }
+
+                    string localPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Forms", "Assets", "logo.png");
+                    if (System.IO.File.Exists(localPath))
+                    {
+                        _appLogo = Image.FromFile(localPath);
+                        return _appLogo;
+                    }
+
+                    string devPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "Forms", "Assets", "logo.png");
+                    if (System.IO.File.Exists(devPath))
+                    {
+                        _appLogo = Image.FromFile(devPath);
+                        return _appLogo;
+                    }
+                }
+                catch { }
+                return null;
+            }
+        }
+
         // Typography
         public static readonly Font TitleFont = new Font("Segoe UI", 20, FontStyle.Bold);
         public static readonly Font SubtitleFont = new Font("Segoe UI", 10.5f);
@@ -153,7 +194,6 @@ namespace SCRAP.winforms
             dgv.ReadOnly = true;
             dgv.MultiSelect = false;
             dgv.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
-            dgv.AutoGenerateColumns = true;
             dgv.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
             dgv.ScrollBars = ScrollBars.Both;
             dgv.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
@@ -197,6 +237,9 @@ namespace SCRAP.winforms
                     n.Equals("Inventory", StringComparison.OrdinalIgnoreCase) ||
                     n.Equals("TeardownBatch", StringComparison.OrdinalIgnoreCase) ||
                     n.Equals("User", StringComparison.OrdinalIgnoreCase) ||
+                    n.Equals("Branch", StringComparison.OrdinalIgnoreCase) ||
+                    n.Equals("BranchId", StringComparison.OrdinalIgnoreCase) ||
+                    n.Equals("Yields", StringComparison.OrdinalIgnoreCase) ||
                     n.Equals("ProcessedByUser", StringComparison.OrdinalIgnoreCase) ||
                     n.Equals("ArchetypeRecipes", StringComparison.OrdinalIgnoreCase) ||
                     n.Equals("RawInventories", StringComparison.OrdinalIgnoreCase) ||
@@ -285,52 +328,80 @@ namespace SCRAP.winforms
         /// </summary>
         public static void FillColumnsToWidth(DataGridView dgv)
         {
-            if (dgv == null || dgv.IsDisposed || dgv.Columns.Count == 0) return;
+            if (dgv == null || dgv.IsDisposed || !dgv.IsHandleCreated || dgv.Columns == null || dgv.Columns.Count == 0) return;
 
-            var visible = new List<DataGridViewColumn>();
-            int fixedTotal = 0;
-            foreach (DataGridViewColumn col in dgv.Columns)
+            try
             {
-                if (!col.Visible) continue;
-                visible.Add(col);
-                fixedTotal += Math.Max(1, col.Width);
-            }
-            if (visible.Count == 0 || fixedTotal <= 0) return;
+                dgv.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None;
 
-            // Use client width minus a small fudge for scrollbar/border
-            int avail = dgv.ClientSize.Width - 4;
-            if (avail < 100) avail = Math.Max(100, dgv.Width - 4);
-            if (avail <= fixedTotal)
-            {
-                // Still ensure AutoSize Fill mode so user resize works
-                dgv.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
-                foreach (var col in visible)
-                    col.FillWeight = Math.Max(1, col.Width);
-                return;
-            }
-
-            // Expand each column proportionally
-            float scale = (float)avail / fixedTotal;
-            int used = 0;
-            for (int i = 0; i < visible.Count; i++)
-            {
-                var col = visible[i];
-                if (i == visible.Count - 1)
+                var visible = new List<DataGridViewColumn>();
+                int fixedTotal = 0;
+                foreach (DataGridViewColumn col in dgv.Columns)
                 {
-                    col.Width = Math.Max(col.MinimumWidth, avail - used);
+                    if (col == null || !col.Visible) continue;
+                    visible.Add(col);
+                    fixedTotal += Math.Max(1, col.Width);
                 }
-                else
-                {
-                    int w = Math.Max(col.MinimumWidth, (int)(col.Width * scale));
-                    col.Width = w;
-                    used += w;
-                }
-            }
+                if (visible.Count == 0 || fixedTotal <= 0) return;
 
-            // Also set Fill mode + weights so when the form resizes, columns keep filling
-            dgv.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
-            foreach (var col in visible)
-                col.FillWeight = Math.Max(1, col.Width);
+                int avail = dgv.ClientSize.Width - 4;
+                if (avail < 100) avail = Math.Max(100, dgv.Width - 4);
+
+                if (avail > fixedTotal)
+                {
+                    float scale = (float)avail / fixedTotal;
+                    int used = 0;
+                    for (int i = 0; i < visible.Count; i++)
+                    {
+                        var col = visible[i];
+                        if (col == null) continue;
+                        if (i == visible.Count - 1)
+                        {
+                            try
+                            {
+                                col.Width = Math.Max(col.MinimumWidth, avail - used);
+                            }
+                            catch { }
+                        }
+                        else
+                        {
+                            int w = Math.Max(col.MinimumWidth, (int)(col.Width * scale));
+                            try
+                            {
+                                col.Width = w;
+                            }
+                            catch { }
+                            used += w;
+                        }
+                    }
+                }
+
+                // Also set Fill mode + weights so when the form resizes, columns keep filling
+                try
+                {
+                    dgv.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+                    foreach (var col in visible)
+                    {
+                        if (col != null)
+                        {
+                            if (col is DataGridViewButtonColumn || col.Name.StartsWith("ColView", StringComparison.OrdinalIgnoreCase) || col.HeaderText.Equals("Action", StringComparison.OrdinalIgnoreCase))
+                            {
+                                col.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+                                col.Width = 90;
+                            }
+                            else
+                            {
+                                col.FillWeight = Math.Max(1, col.Width);
+                            }
+                        }
+                    }
+                }
+                catch { }
+            }
+            catch
+            {
+                // Ignore transient layout exceptions during window handle creation/resizing
+            }
         }
 
         public static void ConfigureSimpleColumns(DataGridView dgv, params (string NameContains, string Header, int Width)[] rules)
@@ -447,6 +518,7 @@ namespace SCRAP.winforms
                 Font = NavFont,
                 TextAlign = ContentAlignment.MiddleLeft,
                 Cursor = Cursors.Hand,
+                UseMnemonic = false,
                 FlatAppearance = { BorderSize = 0 }
             };
             if (active)
@@ -461,6 +533,81 @@ namespace SCRAP.winforms
                 btn.FlatAppearance.MouseOverBackColor = SidebarHover;
             }
             return btn;
+        }
+
+        /// <summary>
+        /// Embeds a live Cloud Sync status indicator badge into a sidebar above the user profile area.
+        /// </summary>
+        public static Forms.CloudSyncBadgeControl AttachCloudSyncBadge(Panel sidebar, Panel userArea)
+        {
+            if (sidebar.Controls.Contains(userArea))
+            {
+                sidebar.Controls.Remove(userArea);
+            }
+
+            int userHeight = userArea.Height > 0 ? userArea.Height : 92;
+            var bottomContainer = new Panel
+            {
+                Height = userHeight + 54,
+                Dock = DockStyle.Bottom,
+                BackColor = ColorTranslator.FromHtml("#0B1220")
+            };
+
+            var badge = new Forms.CloudSyncBadgeControl
+            {
+                Dock = DockStyle.Top,
+                Height = 54
+            };
+
+            userArea.Dock = DockStyle.Fill;
+
+            bottomContainer.Controls.Add(userArea);
+            bottomContainer.Controls.Add(badge);
+            sidebar.Controls.Add(bottomContainer);
+
+            return badge;
+        }
+
+        /// <summary>
+        /// Creates a sleek company badge panel to display the current tenant company in the sidebar.
+        /// </summary>
+        public static Panel CreateCompanyBadge(int top = 70, int left = 16, int width = 208, int height = 34)
+        {
+            var pnl = new Panel
+            {
+                Top = top,
+                Left = left,
+                Width = width,
+                Height = height,
+                BackColor = ColorTranslator.FromHtml("#1E293B"),
+                Padding = new Padding(6, 0, 6, 0)
+            };
+
+            pnl.Paint += (s, e) =>
+            {
+                using var pen = new Pen(ColorTranslator.FromHtml("#334155"), 1);
+                e.Graphics.DrawRectangle(pen, 0, 0, pnl.Width - 1, pnl.Height - 1);
+            };
+
+            var companyDisplay = Forms.CurrentSession.GetCompanyDisplay();
+            var lbl = new Label
+            {
+                Dock = DockStyle.Fill,
+                Text = "🏢 " + companyDisplay,
+                ForeColor = ColorTranslator.FromHtml("#38BDF8"),
+                Font = new Font("Segoe UI Semibold", 8.25f, FontStyle.Bold),
+                TextAlign = ContentAlignment.MiddleCenter,
+                AutoEllipsis = true,
+                BackColor = Color.Transparent
+            };
+
+            var tip = new ToolTip();
+            string tipText = $"Active Organization: {companyDisplay}\nTenant Code: {Forms.CurrentSession.CompanyCode}";
+            tip.SetToolTip(lbl, tipText);
+            tip.SetToolTip(pnl, tipText);
+
+            pnl.Controls.Add(lbl);
+            return pnl;
         }
     }
 }

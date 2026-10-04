@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Drawing;
 using System.Windows.Forms;
 using SCRAP.winforms.Forms;
@@ -19,13 +19,15 @@ namespace SCRAP.winforms
         private Panel userArea = null!;
 
         private Button btnDashboard = null!;
-        private Button btnInventory = null!;
-        private Button btnTeardown = null!;
+        private Button? btnInventory;
+        private Button? btnTeardown;
+        private Button? btnProcurement;
+        private Button? btnMyPortal;
         private Button? _activeNav;
 
         public TechnicalMainForm()
         {
-            Text = "S.C.R.A.P — Technical Staff";
+            Text = $"S.C.R.A.P — Technical Staff — {CurrentSession.GetCompanyDisplay()}";
             Width = 1200;
             Height = 750;
             MinimumSize = new Size(1000, 600);
@@ -53,7 +55,7 @@ namespace SCRAP.winforms
                 Left = 0,
                 Top = 0,
                 Width = 240,
-                Height = 80,
+                Height = 114,
                 BackColor = Theme.SidebarBg
             };
 
@@ -62,7 +64,7 @@ namespace SCRAP.winforms
                 Left = 0,
                 Top = 0,
                 Width = 4,
-                Height = 80,
+                Height = 114,
                 BackColor = Theme.Green
             };
 
@@ -70,9 +72,9 @@ namespace SCRAP.winforms
             {
                 Text = "S.C.R.A.P",
                 Left = 20,
-                Top = 18,
+                Top = 14,
                 Width = 200,
-                Height = 28,
+                Height = 26,
                 Font = new Font("Segoe UI", 16, FontStyle.Bold),
                 ForeColor = Color.White,
                 BackColor = Color.Transparent
@@ -82,7 +84,7 @@ namespace SCRAP.winforms
             {
                 Text = "Technical Console",
                 Left = 20,
-                Top = 48,
+                Top = 40,
                 Width = 200,
                 Height = 20,
                 Font = new Font("Segoe UI", 8.5f),
@@ -90,20 +92,59 @@ namespace SCRAP.winforms
                 BackColor = Color.Transparent
             };
 
+            var companyBadge = Theme.CreateCompanyBadge(top: 68, left: 16, width: 208, height: 34);
+
             logoArea.Controls.Add(accent);
             logoArea.Controls.Add(lblBrand);
             logoArea.Controls.Add(lblBrandSub);
+            logoArea.Controls.Add(companyBadge);
 
-            var secFloor = CreateSectionLabel("FLOOR OPERATIONS", 100);
+            sidebar.Controls.Add(logoArea);
 
-            btnDashboard = Theme.CreateNavButton("Dashboard", 128);
+            int nextTop = 126;
+
+            var secFloor = CreateSectionLabel("TECHNICAL OPERATIONS", nextTop);
+            sidebar.Controls.Add(secFloor);
+            nextTop += 28;
+
+            btnDashboard = Theme.CreateNavButton("Dashboard", nextTop);
             btnDashboard.Click += (s, e) => { SetActive(btnDashboard); ShowDashboard(); };
+            sidebar.Controls.Add(btnDashboard);
+            nextTop += 44;
 
-            btnInventory = Theme.CreateNavButton("Inventory", 172);
-            btnInventory.Click += (s, e) => { SetActive(btnInventory); ShowInventory(); };
+            if (CurrentSession.HasModuleAccess("Inventory"))
+            {
+                btnInventory = Theme.CreateNavButton("Inventory", nextTop);
+                btnInventory.Click += (s, e) => { SetActive(btnInventory); ShowInventory(); };
+                sidebar.Controls.Add(btnInventory);
+                nextTop += 44;
+            }
 
-            btnTeardown = Theme.CreateNavButton("Teardown", 216);
+            // Teardown is accessible across all subscription plans
+            btnTeardown = Theme.CreateNavButton("Teardown", nextTop);
             btnTeardown.Click += (s, e) => { SetActive(btnTeardown); ShowTeardown(); };
+            sidebar.Controls.Add(btnTeardown);
+            nextTop += 44;
+
+            if (CurrentSession.HasModuleAccess("Procurement"))
+            {
+                btnProcurement = Theme.CreateNavButton("Procurement Arrival", nextTop);
+                btnProcurement.Click += (s, e) => { SetActive(btnProcurement); ShowProcurementArrival(); };
+                sidebar.Controls.Add(btnProcurement);
+                nextTop += 44;
+            }
+
+            if (CurrentSession.HasModuleAccess("HR") && !string.Equals(CurrentSession.CompanyCode, "GREEN", StringComparison.OrdinalIgnoreCase))
+            {
+                nextTop += 10;
+                var secSelf = CreateSectionLabel("MY ACCOUNT", nextTop);
+                sidebar.Controls.Add(secSelf);
+                nextTop += 28;
+
+                btnMyPortal = Theme.CreateNavButton("My Portal", nextTop);
+                btnMyPortal.Click += (s, e) => { SetActive(btnMyPortal); ShowMyPortal(); };
+                sidebar.Controls.Add(btnMyPortal);
+            }
 
             userArea = new Panel
             {
@@ -123,26 +164,30 @@ namespace SCRAP.winforms
 
             var lblUser = new Label
             {
-                Text = "Technical Staff",
+                Text = !string.IsNullOrWhiteSpace(CurrentSession.FullName) ? CurrentSession.FullName : "Technical Staff",
                 Left = 60,
                 Top = 14,
                 Width = 160,
                 Height = 20,
                 Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
                 ForeColor = Color.White,
-                BackColor = Color.Transparent
+                BackColor = Color.Transparent,
+                AutoEllipsis = true
             };
 
             var lblRole = new Label
             {
-                Text = "Facility Operator",
+                Text = !string.IsNullOrWhiteSpace(CurrentSession.BranchName)
+                    ? $"{CurrentSession.BranchName} • Tech ({CurrentSession.CompanyCode})"
+                    : $"Technical Staff ({CurrentSession.CompanyCode})",
                 Left = 60,
                 Top = 34,
                 Width = 160,
                 Height = 18,
                 Font = new Font("Segoe UI", 8f),
                 ForeColor = Theme.SidebarText,
-                BackColor = Color.Transparent
+                BackColor = Color.Transparent,
+                AutoEllipsis = true
             };
             var btnLogout = new Button
             {
@@ -163,12 +208,7 @@ namespace SCRAP.winforms
             userArea.Controls.Add(lblUser);
             userArea.Controls.Add(lblRole);
             userArea.Controls.Add(btnLogout);
-            sidebar.Controls.Add(logoArea);
-            sidebar.Controls.Add(secFloor);
-            sidebar.Controls.Add(btnDashboard);
-            sidebar.Controls.Add(btnInventory);
-            sidebar.Controls.Add(btnTeardown);
-            sidebar.Controls.Add(userArea);
+            Theme.AttachCloudSyncBadge(sidebar, userArea);
 
             Controls.Add(sidebar);
             SetActive(btnDashboard);
@@ -186,16 +226,22 @@ namespace SCRAP.winforms
             BackColor = Color.Transparent
         };
 
-        private void SetActive(Button btn)
+        private void SetActive(Button? btn)
         {
-            foreach (var b in new[] { btnDashboard, btnInventory, btnTeardown })
+            foreach (var b in new[] { btnDashboard, btnInventory, btnTeardown, btnProcurement, btnMyPortal })
             {
-                b.BackColor = Theme.SidebarBg;
-                b.ForeColor = Theme.SidebarText;
+                if (b != null)
+                {
+                    b.BackColor = Theme.SidebarBg;
+                    b.ForeColor = Theme.SidebarText;
+                }
             }
-            btn.BackColor = Theme.SidebarActive;
-            btn.ForeColor = Theme.SidebarTextActive;
-            _activeNav = btn;
+            if (btn != null)
+            {
+                btn.BackColor = Theme.SidebarActive;
+                btn.ForeColor = Theme.SidebarTextActive;
+                _activeNav = btn;
+            }
         }
 
         private void BuildContentHost()
@@ -224,5 +270,11 @@ namespace SCRAP.winforms
 
         private void ShowTeardown() =>
             EmbedForm(new TeardownForm { ShowInTaskbar = false });
+
+        private void ShowProcurementArrival() =>
+            EmbedForm(new TechProcurementArrivalForm { ShowInTaskbar = false });
+
+        private void ShowMyPortal() =>
+            EmbedForm(new EmployeePortalForm { ShowInTaskbar = false });
     }
 }

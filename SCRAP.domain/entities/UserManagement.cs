@@ -21,5 +21,9 @@ namespace SCRAP.domain.entities
         public string PasswordHash { get; set; } = string.Empty;
         public UserRole Role { get; set; }
         public bool IsActive { get; set; } = true;
+
+        // Branch assignment (null = Admin / unassigned)
+        public int? BranchId { get; set; }
+        public Branch? Branch { get; set; }
     }
 }

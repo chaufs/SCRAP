@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 namespace SCRAP.domain.entities
 {
@@ -13,5 +13,9 @@ namespace SCRAP.domain.entities
         public string InvoiceNumber { get; set; } = string.Empty;
         public DateTime SaleDate { get; set; }
         public string? Notes { get; set; }
+        public int BranchId { get; set; }
+
+        // Navigation
+        public Branch? Branch { get; set; }
     }
 }

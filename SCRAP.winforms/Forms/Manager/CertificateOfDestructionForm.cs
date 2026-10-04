@@ -30,12 +30,7 @@ namespace SCRAP.winforms.Forms.Destruction
 
         // --- Generate tab ---
         private Panel formPanel = null!;
-        private TextBox txtProviderName = null!;
-        private TextBox txtProviderAddress = null!;
         private ComboBox cmbMethod = null!;
-        private TextBox txtSecurityStandard = null!;
-        private TextBox txtVerifiedBy = null!;
-        private TextBox txtProcuredFrom = null!;
         private Label lblSelectedCount = null!;
         private Button btnGenerate = null!;
         private Panel cardPending = null!;
@@ -109,123 +104,51 @@ namespace SCRAP.winforms.Forms.Destruction
             var tabHistory = new TabPage("Certificate History") { BackColor = Theme.Background, Padding = new Padding(12) };
 
             // ========== GENERATE TAB ==========
-            // Form fields panel (top)
+            // Streamlined action panel: destruction method, generate button & selected drive count
             formPanel = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 220,
+                Height = 64,
                 BackColor = Theme.Background
             };
 
-            // Row 1
-            var lblProviderName = MakeFieldLabel("Provider Name", 0, 4);
-            txtProviderName = new TextBox
+            var lblMethod = MakeFieldLabel("Destruction Method", 0, 4);
+            cmbMethod = new ComboBox
             {
                 Left = 0,
                 Top = 24,
-                Width = 200,
-                Height = 32,
-                PlaceholderText = "",
-                Text = ""
-            };
-            Theme.StyleTextBox(txtProviderName);
-
-            var lblProviderAddr = MakeFieldLabel("Provider Address", 220, 4);
-            txtProviderAddress = new TextBox
-            {
-                Left = 220,
-                Top = 24,
                 Width = 220,
-                Height = 32,
-                PlaceholderText = ""
-            };
-            Theme.StyleTextBox(txtProviderAddress);
-
-            var lblMethod = MakeFieldLabel("Destruction Method", 460, 4);
-            cmbMethod = new ComboBox
-            {
-                Left = 460,
-                Top = 24,
-                Width = 200,
                 DropDownStyle = ComboBoxStyle.DropDownList
             };
             Theme.StyleComboBox(cmbMethod);
             cmbMethod.DataSource = Enum.GetValues(typeof(DestructionMethod));
 
-            // Row 2
-            var lblSecStd = MakeFieldLabel("Security Standard", 0, 68);
-            txtSecurityStandard = new TextBox
-            {
-                Left = 0,
-                Top = 88,
-                Width = 200,
-                Height = 32,
-                PlaceholderText = "e.g. NIST 800-88"
-            };
-            Theme.StyleTextBox(txtSecurityStandard);
-
-            var lblVerifiedBy = MakeFieldLabel("Verified By", 220, 68);
-            txtVerifiedBy = new TextBox
-            {
-                Left = 220,
-                Top = 88,
-                Width = 220,
-                Height = 32,
-                PlaceholderText = ""
-            };
-            Theme.StyleTextBox(txtVerifiedBy);
-
             btnGenerate = new Button
             {
-                Text = "Generate Certificate",
-                Left = 460,
-                Top = 86,
+                Text = "⚡ Generate Certificate",
+                Left = 236,
+                Top = 22,
                 Width = 200,
                 Height = 36
             };
             Theme.StylePrimaryButton(btnGenerate);
             btnGenerate.Click += async (s, e) => await GenerateCertificate();
 
-            // Row 3 — inherited from procurement (read-only)
-            var lblProcuredFrom = MakeFieldLabel("Procured / Sourced From (auto-filled)", 0, 132);
-            txtProcuredFrom = new TextBox
-            {
-                Left = 0,
-                Top = 152,
-                Width = 440,
-                Height = 32,
-                PlaceholderText = "Select drive(s) above to auto-fill",
-                ReadOnly = true,
-                BackColor = System.Drawing.Color.FromArgb(240, 240, 240)
-            };
-            Theme.StyleTextBox(txtProcuredFrom);
-            txtProcuredFrom.BackColor = System.Drawing.Color.FromArgb(240, 240, 240);
-
             lblSelectedCount = new Label
             {
                 Text = "0 drives selected",
-                Left = 460,
-                Top = 158,
-                Width = 280,
+                Left = 452,
+                Top = 30,
+                Width = 220,
                 Height = 22,
                 Font = Theme.StatLabelFont,
                 ForeColor = Theme.MutedText,
                 BackColor = Color.Transparent
             };
 
-            formPanel.Controls.Add(lblProviderName);
-            formPanel.Controls.Add(txtProviderName);
-            formPanel.Controls.Add(lblProviderAddr);
-            formPanel.Controls.Add(txtProviderAddress);
             formPanel.Controls.Add(lblMethod);
             formPanel.Controls.Add(cmbMethod);
-            formPanel.Controls.Add(lblSecStd);
-            formPanel.Controls.Add(txtSecurityStandard);
-            formPanel.Controls.Add(lblVerifiedBy);
-            formPanel.Controls.Add(txtVerifiedBy);
             formPanel.Controls.Add(btnGenerate);
-            formPanel.Controls.Add(lblProcuredFrom);
-            formPanel.Controls.Add(txtProcuredFrom);
             formPanel.Controls.Add(lblSelectedCount);
 
             // Pending drives section
@@ -257,6 +180,7 @@ namespace SCRAP.winforms.Forms.Destruction
                 SelectionMode = DataGridViewSelectionMode.FullRowSelect,
                 MultiSelect = true
             };
+            dgvPending.DataError += (s, e) => { e.ThrowException = false; };
             Theme.StyleGrid(dgvPending);
             BuildPendingColumns();
             cardPending.Controls.Add(dgvPending);
@@ -303,6 +227,7 @@ namespace SCRAP.winforms.Forms.Destruction
             cardHistory = MakeCard();
             cardHistory.Dock = DockStyle.Fill;
             dgvHistory = new DataGridView { Dock = DockStyle.Fill };
+            dgvHistory.DataError += (s, e) => { e.ThrowException = false; };
             Theme.StyleGrid(dgvHistory);
             cardHistory.Controls.Add(dgvHistory);
 
@@ -448,16 +373,6 @@ namespace SCRAP.winforms.Forms.Destruction
         {
             var count = dgvPending.SelectedRows.Count;
             lblSelectedCount.Text = $"{count} drive{(count == 1 ? "" : "s")} selected";
-
-            // Auto-inherit the procurement source from the selected devices
-            var sources = dgvPending.SelectedRows
-                .Cast<DataGridViewRow>()
-                .Select(r => (r.DataBoundItem as PendingItemRow)?.PurchasedFrom ?? "")
-                .Where(s => !string.IsNullOrWhiteSpace(s))
-                .Distinct()
-                .ToList();
-
-            txtProcuredFrom.Text = sources.Count > 0 ? string.Join(", ", sources) : "";
         }
 
         private async Task LoadPending()
@@ -578,20 +493,6 @@ namespace SCRAP.winforms.Forms.Destruction
                 return;
             }
 
-            if (string.IsNullOrWhiteSpace(txtProviderName.Text))
-            {
-                MessageBox.Show("Provider name is required.", "S.C.R.A.P",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
-            }
-
-            if (string.IsNullOrWhiteSpace(txtVerifiedBy.Text))
-            {
-                MessageBox.Show("Enter the name of the person verifying destruction.", "S.C.R.A.P",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
-            }
-
             if (cmbMethod.SelectedItem is not DestructionMethod method)
             {
                 MessageBox.Show("Select a destruction method.", "S.C.R.A.P",
@@ -604,17 +505,29 @@ namespace SCRAP.winforms.Forms.Destruction
                 "Confirm Certificate", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
             if (confirm != DialogResult.Yes) return;
 
+            var providerName = !string.IsNullOrWhiteSpace(CurrentSession.CompanyName)
+                ? CurrentSession.CompanyName
+                : (!string.IsNullOrWhiteSpace(CurrentSession.CompanyCode) ? CurrentSession.CompanyCode : OrgName);
+
+            var providerAddress = !string.IsNullOrWhiteSpace(CurrentSession.BranchName)
+                ? $"{CurrentSession.BranchName}, {providerName}"
+                : OrgAddress;
+
+            var verifiedBy = !string.IsNullOrWhiteSpace(CurrentSession.FullName)
+                ? CurrentSession.FullName
+                : (!string.IsNullOrWhiteSpace(CurrentSession.Username) ? CurrentSession.Username : "Manager");
+
             var request = new CreateCertificateRequestDto
             {
                 StorageDestructionRecordIds = selectedIds,
-                OrganizationName = OrgName,
+                OrganizationName = providerName,
                 OrganizationAddress = OrgAddress,
-                ProviderName = txtProviderName.Text.Trim(),
-                ProviderAddress = txtProviderAddress.Text.Trim(),
+                ProviderName = providerName,
+                ProviderAddress = providerAddress,
                 Method = method,
-                SecurityStandard = txtSecurityStandard.Text.Trim(),
+                SecurityStandard = "NIST 800-88 Rev. 1",
                 ManagerUserId = CurrentSession.UserId,
-                VerifiedByName = txtVerifiedBy.Text.Trim()
+                VerifiedByName = verifiedBy
             };
 
             btnGenerate.Enabled = false;
@@ -653,13 +566,8 @@ namespace SCRAP.winforms.Forms.Destruction
 
         private void ClearForm()
         {
-            txtProviderAddress.Clear();
-            txtSecurityStandard.Clear();
-            txtVerifiedBy.Clear();
-            txtProcuredFrom.Clear();
-            // keep provider name default
-            if (string.IsNullOrWhiteSpace(txtProviderName.Text))
-                txtProviderName.Text = "EcoExtract Co.";
+            if (cmbMethod.Items.Count > 0)
+                cmbMethod.SelectedIndex = 0;
         }
 
         private class PendingItemRow

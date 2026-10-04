@@ -1,8 +1,10 @@
-﻿using System;
+using System;
 using System.Drawing;
 using System.Windows.Forms;
 using SCRAP.winforms.Forms;
 using SCRAP.winforms.Forms.Admin;
+using SCRAP.winforms.Forms.Sales;
+using SCRAP.winforms.Forms.Technical;
 
 namespace SCRAP.winforms
 {
@@ -11,8 +13,6 @@ namespace SCRAP.winforms
     /// </summary>
     public class MainForm : Form
     {
-
-        private Button btnHR = null!;
         private Panel sidebar = null!;
         private Panel contentHost = null!;
         private Panel logoArea = null!;
@@ -21,15 +21,20 @@ namespace SCRAP.winforms
         private Panel userArea = null!;
 
         private Button btnDashboard = null!;
-        private Button btnCategories = null!;
-        private Button btnInventory = null!;
-        private Button btnReports = null!;
-        private Button btnFinance = null!;
+        private Button? btnCategories;
+        private Button? btnInventory;
+        private Button? btnProcurement;
+        private Button? btnHR;
+        private Button? btnBranches;
+        private Button? btnBranchOverview;
+        private Button? btnReports;
+        private Button? btnFinance;
+        private Button? btnTerms;
         private Button? _activeNav;
 
         public MainForm()
         {
-            Text = "S.C.R.A.P — Admin";
+            Text = $"S.C.R.A.P — Admin — {CurrentSession.GetCompanyDisplay()}";
             Width = 1200;
             Height = 750;
             MinimumSize = new Size(1000, 600);
@@ -54,10 +59,8 @@ namespace SCRAP.winforms
 
             logoArea = new Panel
             {
-                Left = 0,
-                Top = 0,
-                Width = 240,
-                Height = 80,
+                Dock = DockStyle.Top,
+                Height = 114,
                 BackColor = Theme.SidebarBg
             };
 
@@ -66,7 +69,7 @@ namespace SCRAP.winforms
                 Left = 0,
                 Top = 0,
                 Width = 4,
-                Height = 80,
+                Height = 114,
                 BackColor = Theme.Green
             };
 
@@ -74,21 +77,19 @@ namespace SCRAP.winforms
             {
                 Text = "S.C.R.A.P",
                 Left = 20,
-                Top = 18,
+                Top = 14,
                 Width = 200,
-                Height = 28,
+                Height = 26,
                 Font = new Font("Segoe UI", 16, FontStyle.Bold),
                 ForeColor = Color.White,
                 BackColor = Color.Transparent
             };
 
-
-
             lblBrandSub = new Label
             {
                 Text = "Admin Console",
                 Left = 20,
-                Top = 48,
+                Top = 40,
                 Width = 200,
                 Height = 20,
                 Font = new Font("Segoe UI", 8.5f),
@@ -96,37 +97,117 @@ namespace SCRAP.winforms
                 BackColor = Color.Transparent
             };
 
+            var companyBadge = Theme.CreateCompanyBadge(top: 68, left: 16, width: 208, height: 34);
+
             logoArea.Controls.Add(accent);
             logoArea.Controls.Add(lblBrand);
             logoArea.Controls.Add(lblBrandSub);
+            logoArea.Controls.Add(companyBadge);
 
-            var secOps = CreateSectionLabel("OPERATIONS", 100);
+            var navPanel = new Panel
+            {
+                Dock = DockStyle.Fill,
+                BackColor = Theme.SidebarBg,
+                AutoScroll = true
+            };
 
+            int nextTop = 10;
+            
+            var secOps = CreateSectionLabel("OPERATIONS", nextTop);
+            navPanel.Controls.Add(secOps);
+            nextTop += 24;
 
-            btnDashboard = Theme.CreateNavButton("Dashboard", 128);
+            btnDashboard = CreateNavButton("Dashboard", nextTop);
             btnDashboard.Click += (s, e) => { SetActive(btnDashboard); ShowDashboard(); };
+            navPanel.Controls.Add(btnDashboard);
+            nextTop += 42;
 
-            btnCategories = Theme.CreateNavButton("Device Categories", 172);
-            btnCategories.Click += (s, e) => { SetActive(btnCategories); ShowCategories(); };
+            if (CurrentSession.HasModuleAccess("Inventory"))
+            {
+                btnCategories = CreateNavButton("Device Categories", nextTop);
+                btnCategories.Click += (s, e) => { SetActive(btnCategories); ShowCategories(); };
+                navPanel.Controls.Add(btnCategories);
+                nextTop += 42;
 
-            btnInventory = Theme.CreateNavButton("Inventory", 216);
-            btnInventory.Click += (s, e) => { SetActive(btnInventory); ShowInventory(0); };
+                btnInventory = CreateNavButton("Inventory", nextTop);
+                btnInventory.Click += (s, e) => { SetActive(btnInventory); ShowInventory(0); };
+                navPanel.Controls.Add(btnInventory);
+                nextTop += 42;
+            }
 
+            if (CurrentSession.HasModuleAccess("Procurement"))
+            {
+                btnProcurement = CreateNavButton("Procurement History", nextTop);
+                btnProcurement.Click += (s, e) => { SetActive(btnProcurement); ShowProcurement(); };
+                navPanel.Controls.Add(btnProcurement);
+                nextTop += 42;
+            }
 
-            btnHR = Theme.CreateNavButton("HR Management", 304);
-            btnHR.Click += (s, e) => { SetActive(btnHR); ShowHR(); };
+            if (CurrentSession.HasModuleAccess("HR"))
+            {
+                var secPeople = CreateSectionLabel("STAFF & HR", nextTop);
+                navPanel.Controls.Add(secPeople);
+                nextTop += 24;
 
-            var secAnalytics = CreateSectionLabel("ANALYTICS", 276);
+                btnHR = CreateNavButton("HR Management", nextTop);
+                btnHR.Click += (s, e) => { SetActive(btnHR); ShowHR(); };
+                navPanel.Controls.Add(btnHR);
+                nextTop += 42;
+            }
 
-            btnReports = Theme.CreateNavButton("Reports", 304);
-            btnReports.Click += (s, e) => { SetActive(btnReports); ShowReports(); };
+            if (CurrentSession.HasModuleAccess("Branches"))
+            {
+                var secBranches = CreateSectionLabel("BRANCHES", nextTop);
+                navPanel.Controls.Add(secBranches);
+                nextTop += 24;
 
-            btnFinance = Theme.CreateNavButton("Company Finance", 348);
-            btnFinance.Click += (s, e) => { SetActive(btnFinance); ShowFinance(); };
+                btnBranches = CreateNavButton("Branch Management", nextTop);
+                btnBranches.Click += (s, e) => { SetActive(btnBranches); ShowBranches(); };
+                navPanel.Controls.Add(btnBranches);
+                nextTop += 42;
+
+                btnBranchOverview = CreateNavButton("Branch Overview", nextTop);
+                btnBranchOverview.Click += (s, e) => { SetActive(btnBranchOverview); ShowBranchOverview(); };
+                navPanel.Controls.Add(btnBranchOverview);
+                nextTop += 42;
+            }
+
+            if (CurrentSession.HasModuleAccess("Reports"))
+            {
+                var secAnalytics = CreateSectionLabel("ANALYTICS", nextTop);
+                navPanel.Controls.Add(secAnalytics);
+                nextTop += 24;
+
+                btnReports = CreateNavButton("Reports", nextTop);
+                btnReports.Click += (s, e) => { SetActive(btnReports); ShowReports(); };
+                navPanel.Controls.Add(btnReports);
+                nextTop += 42;
+            }
+
+            if (CurrentSession.HasModuleAccess("Finance"))
+            {
+                var secFinance = CreateSectionLabel("FINANCE", nextTop);
+                navPanel.Controls.Add(secFinance);
+                nextTop += 24;
+
+                btnFinance = CreateNavButton("Company Finance", nextTop);
+                btnFinance.Click += (s, e) => { SetActive(btnFinance); ShowFinance(); };
+                navPanel.Controls.Add(btnFinance);
+                nextTop += 42;
+            }
+
+            var secGovernance = CreateSectionLabel("LEGAL & GOVERNANCE", nextTop);
+            navPanel.Controls.Add(secGovernance);
+            nextTop += 24;
+
+            btnTerms = CreateNavButton("Terms & Conditions", nextTop);
+            btnTerms.Click += (s, e) => { SetActive(btnTerms); ShowTerms(); };
+            navPanel.Controls.Add(btnTerms);
+            nextTop += 48;
 
             userArea = new Panel
             {
-                Height = 96,   // increased from 64
+                Height = 96,
                 Dock = DockStyle.Bottom,
                 BackColor = ColorTranslator.FromHtml("#0B1220")
             };
@@ -141,7 +222,7 @@ namespace SCRAP.winforms
 
             var lblUser = new Label
             {
-                Text = "Administrator",
+                Text = CurrentSession.FullName,
                 Left = 60,
                 Top = 14,
                 Width = 160,
@@ -153,14 +234,17 @@ namespace SCRAP.winforms
 
             var lblRole = new Label
             {
-                Text = "Admin",
+                Text = !string.IsNullOrWhiteSpace(CurrentSession.CompanyCode)
+                    ? $"{CurrentSession.Role} • {CurrentSession.CompanyCode}"
+                    : CurrentSession.Role,
                 Left = 60,
                 Top = 34,
                 Width = 160,
                 Height = 18,
                 Font = new Font("Segoe UI", 8f),
                 ForeColor = Theme.SidebarText,
-                BackColor = Color.Transparent
+                BackColor = Color.Transparent,
+                AutoEllipsis = true
             };
             var btnLogout = new Button
             {
@@ -181,43 +265,54 @@ namespace SCRAP.winforms
             userArea.Controls.Add(lblUser);
             userArea.Controls.Add(lblRole);
             userArea.Controls.Add(btnLogout);
-            sidebar.Controls.Add(logoArea);
-            sidebar.Controls.Add(secOps);
-            sidebar.Controls.Add(btnDashboard);
-            sidebar.Controls.Add(btnCategories);
-            sidebar.Controls.Add(btnInventory);
-            sidebar.Controls.Add(btnHR);
 
-            sidebar.Controls.Add(secAnalytics);
-            sidebar.Controls.Add(btnReports);
-            sidebar.Controls.Add(btnFinance);
-            sidebar.Controls.Add(userArea);
+            sidebar.Controls.Add(navPanel);
+            sidebar.Controls.Add(logoArea);
+            Theme.AttachCloudSyncBadge(sidebar, userArea);
+
+            logoArea.SendToBack();
+            navPanel.BringToFront();
 
             Controls.Add(sidebar);
             SetActive(btnDashboard);
         }
 
+        private Button CreateNavButton(string text, int top)
+        {
+            var btn = Theme.CreateNavButton(text, top);
+            btn.Left = 8;
+            btn.Width = 208;
+            return btn;
+        }
+
         private Label CreateSectionLabel(string text, int top) => new Label
         {
             Text = text,
-            Left = 20,
+            Left = 16,
             Top = top,
-            Width = 200,
+            Width = 195,
             Height = 20,
             Font = Theme.NavSectionFont,
             ForeColor = Theme.SidebarSection,
-            BackColor = Color.Transparent
+            BackColor = Color.Transparent,
+            UseMnemonic = false
         };
 
-        private void SetActive(Button btn)
+        private void SetActive(Button? btn)
         {
-            foreach (var b in new[] { btnDashboard, btnCategories, btnInventory, btnReports, btnHR, btnFinance })
+            foreach (var b in new[] { btnDashboard, btnCategories, btnInventory, btnProcurement, btnReports, btnHR, btnFinance, btnBranches, btnBranchOverview, btnTerms })
             {
-                b.BackColor = Theme.SidebarBg;
-                b.ForeColor = Theme.SidebarText;
+                if (b != null)
+                {
+                    b.BackColor = Theme.SidebarBg;
+                    b.ForeColor = Theme.SidebarText;
+                }
             }
-            btn.BackColor = Theme.SidebarActive;
-            btn.ForeColor = Theme.SidebarTextActive;
+            if (btn != null)
+            {
+                btn.BackColor = Theme.SidebarActive;
+                btn.ForeColor = Theme.SidebarTextActive;
+            }
             _activeNav = btn;
         }
 
@@ -248,20 +343,32 @@ namespace SCRAP.winforms
                 switch (target)
                 {
                     case DashboardNavTarget.Inventory:
-                        SetActive(btnInventory);
-                        ShowInventory(0);
+                        if (btnInventory != null)
+                        {
+                            SetActive(btnInventory);
+                            ShowInventory(0);
+                        }
                         break;
                     case DashboardNavTarget.DeviceCategories:
-                        SetActive(btnCategories);
-                        ShowCategories();
+                        if (btnCategories != null)
+                        {
+                            SetActive(btnCategories);
+                            ShowCategories();
+                        }
                         break;
                     case DashboardNavTarget.RecoveredCommodities:
-                        SetActive(btnInventory);
-                        ShowInventory(1);
+                        if (btnInventory != null)
+                        {
+                            SetActive(btnInventory);
+                            ShowInventory(1);
+                        }
                         break;
                     case DashboardNavTarget.Reports:
-                        SetActive(btnReports);
-                        ShowReports();
+                        if (btnReports != null)
+                        {
+                            SetActive(btnReports);
+                            ShowReports();
+                        }
                         break;
                 }
             };
@@ -295,6 +402,26 @@ namespace SCRAP.winforms
         {
             EmbedForm(new CompanyFinanceMonitorForm { ShowInTaskbar = false });
             SetActive(btnFinance);
+        }
+        private void ShowBranches()
+        {
+            EmbedForm(new BranchManagementForm { ShowInTaskbar = false });
+        }
+
+        private void ShowBranchOverview()
+        {
+            EmbedForm(new BranchOverviewForm { ShowInTaskbar = false });
+        }
+
+        private void ShowProcurement()
+        {
+            EmbedForm(new ProcurementForm { ShowInTaskbar = false });
+        }
+
+        private void ShowTerms()
+        {
+            EmbedForm(new PlatformTermsForm { ShowInTaskbar = false });
+            SetActive(btnTerms);
         }
     }
 }

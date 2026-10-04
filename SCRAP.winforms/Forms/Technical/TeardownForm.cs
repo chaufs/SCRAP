@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
@@ -87,6 +87,7 @@ namespace SCRAP.winforms.Forms.Technical
                 ValueMember = "Id"
             };
             Theme.StyleComboBox(cmbCategory);
+            cmbCategory.SelectedIndexChanged += (_, _) => { _recipes.Clear(); dgvPreview.DataSource = null; };
 
             lblQty = new Label
             {
@@ -109,6 +110,7 @@ namespace SCRAP.winforms.Forms.Technical
                 Value = 1
             };
             Theme.StyleNumericUpDown(numQuantity);
+            numQuantity.ValueChanged += (_, _) => { _recipes.Clear(); dgvPreview.DataSource = null; };
 
             btnPreview = new Button
             {
@@ -135,6 +137,7 @@ namespace SCRAP.winforms.Forms.Technical
             cardPreview = MakeCard();
             dgvPreview = new DataGridView { Dock = DockStyle.Fill };
             Theme.StyleGrid(dgvPreview);
+            SetupPreviewColumns();
             cardPreview.Controls.Add(dgvPreview);
 
             lblHistory = Theme.CreateSectionTitle("Teardown History", 32, 0);
@@ -142,6 +145,7 @@ namespace SCRAP.winforms.Forms.Technical
             cardHistory = MakeCard();
             dgvHistory = new DataGridView { Dock = DockStyle.Fill };
             Theme.StyleGrid(dgvHistory);
+            SetupHistoryColumns();
             cardHistory.Controls.Add(dgvHistory);
 
             Controls.Add(lblTitle);
@@ -198,34 +202,94 @@ namespace SCRAP.winforms.Forms.Technical
                 Theme.FillColumnsToWidth(dgvHistory);
         }
 
-        private void ConfigurePreviewColumns()
+        private class StockCheckResult
         {
-            Theme.ConfigureSimpleColumns(dgvPreview,
-                ("Material", "Material", 320),
-                ("Weight", "Expected Weight (kg)", 200),
-                ("Expected", "Expected Weight (kg)", 200));
+            public int CategoryId { get; set; }
+            public string CategoryName { get; set; } = "";
+            public int AvailableStock { get; set; }
+            public int RequestedQuantity { get; set; }
+            public bool HasSufficientStock { get; set; }
         }
 
-        private void ConfigureHistoryColumns()
+        private void SetupPreviewColumns()
         {
-            Theme.ConfigureColumns(
-                dgvHistory,
-                new Dictionary<string, (string, int)>(StringComparer.OrdinalIgnoreCase)
-                {
-                    ["Id"] = ("ID", 70),
-                    ["ProcessedByUserId"] = ("Processed By", 120),
-                    ["ProcessedBy"] = ("Processed By", 120),
-                    ["DeviceCategoryId"] = ("Category ID", 110),
-                    ["CategoryId"] = ("Category ID", 110),
-                    ["Quantity"] = ("Quantity", 100),
-                    ["QuantityDismantled"] = ("Quantity", 100),
-                    ["DateProcessed"] = ("Date Processed", 180),
-                    ["ProcessedAt"] = ("Date Processed", 180),
-                    ["TotalWeightKg"] = ("Total Weight (kg)", 140),
-                    ["Notes"] = ("Notes", 180)
-                },
-                "DeviceCategory", "User", "RawInventories", "ProcessedByUser",
-                "DeviceCategoryNavigation", "ProcessedByUserNavigation");
+            dgvPreview.AutoGenerateColumns = false;
+            dgvPreview.Columns.Clear();
+
+            dgvPreview.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "Material",
+                HeaderText = "Output Material",
+                DataPropertyName = "Material",
+                FillWeight = 50,
+                AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill
+            });
+
+            dgvPreview.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "Weight",
+                HeaderText = "Expected Weight (kg)",
+                DataPropertyName = "ExpectedWeight",
+                Width = 220,
+                DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleRight }
+            });
+        }
+
+        private void SetupHistoryColumns()
+        {
+            dgvHistory.AutoGenerateColumns = false;
+            dgvHistory.Columns.Clear();
+
+            dgvHistory.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "BatchCode",
+                HeaderText = "Batch #",
+                DataPropertyName = "BatchCode",
+                Width = 110
+            });
+
+            dgvHistory.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "Date",
+                HeaderText = "Date Processed",
+                DataPropertyName = "Date",
+                Width = 160
+            });
+
+            dgvHistory.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "Category",
+                HeaderText = "Device Category",
+                DataPropertyName = "Category",
+                FillWeight = 40,
+                AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill
+            });
+
+            dgvHistory.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "Quantity",
+                HeaderText = "Qty Dismantled",
+                DataPropertyName = "Quantity",
+                Width = 130,
+                DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleCenter }
+            });
+
+            dgvHistory.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "Yields",
+                HeaderText = "Yield Types",
+                DataPropertyName = "Yields",
+                Width = 130,
+                DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleCenter }
+            });
+
+            dgvHistory.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "Branch",
+                HeaderText = "Branch",
+                DataPropertyName = "Branch",
+                Width = 180
+            });
         }
 
         private async Task LoadCategories()
@@ -250,24 +314,85 @@ namespace SCRAP.winforms.Forms.Technical
         {
             if (cmbCategory.SelectedValue is not int categoryId)
             {
-                MessageBox.Show("Select a category first.", "S.C.R.A.P",
+                MessageBox.Show("Please select a device category first.", "Select Category",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
+
+            int qty = (int)numQuantity.Value;
+
             try
             {
+                // Validate branch inventory stock BEFORE previewing yield
+                var stockRes = await ApiConfig.Http.GetAsync($"api/Teardown/stock-check?categoryId={categoryId}&quantity={qty}");
+                if (stockRes.IsSuccessStatusCode)
+                {
+                    var stock = await stockRes.Content.ReadFromJsonAsync<StockCheckResult>();
+                    if (stock != null)
+                    {
+                        if (stock.AvailableStock <= 0)
+                        {
+                            dgvPreview.DataSource = null;
+                            _recipes.Clear();
+                            MessageBox.Show(
+                                $"No available stock: There are 0 {stock.CategoryName} units in stock for your branch.\n\nCannot preview or perform teardown without available inventory.",
+                                "No Stock Available",
+                                MessageBoxButtons.OK,
+                                MessageBoxIcon.Warning);
+                            return;
+                        }
+
+                        if (!stock.HasSufficientStock)
+                        {
+                            dgvPreview.DataSource = null;
+                            _recipes.Clear();
+                            MessageBox.Show(
+                                $"Insufficient stock: Only {stock.AvailableStock} {stock.CategoryName} unit(s) available in your branch inventory, but {qty} requested.\n\nPlease adjust the quantity or wait for incoming inventory before proceeding.",
+                                "Insufficient Stock",
+                                MessageBoxButtons.OK,
+                                MessageBoxIcon.Warning);
+                            return;
+                        }
+                    }
+                }
+                else
+                {
+                    var errorBody = await stockRes.Content.ReadAsStringAsync();
+                    string msg = "Unable to check inventory stock.";
+                    try
+                    {
+                        using var doc = System.Text.Json.JsonDocument.Parse(errorBody);
+                        if (doc.RootElement.TryGetProperty("message", out var m))
+                            msg = m.GetString() ?? msg;
+                    }
+                    catch { }
+                    MessageBox.Show(msg, "Stock Check Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
                 var res = await ApiConfig.Http.GetAsync($"api/DeviceCategories/{categoryId}/yields");
                 if (res.IsSuccessStatusCode)
                 {
                     _recipes = await res.Content.ReadFromJsonAsync<List<ArchetypeRecipe>>() ?? new();
-                    var qty = numQuantity.Value;
+                    if (_recipes.Count == 0)
+                    {
+                        dgvPreview.DataSource = null;
+                        MessageBox.Show("No archetype recipe defined for this device category.", "No Recipe Found",
+                            MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        return;
+                    }
+
                     var preview = _recipes.ConvertAll(r => new
                     {
                         Material = r.MaterialName,
-                        ExpectedWeightKg = r.WeightKgPerUnit * qty
+                        ExpectedWeight = $"{r.WeightKgPerUnit * qty:F2} kg"
                     });
                     dgvPreview.DataSource = preview;
-                    ConfigurePreviewColumns();
+                }
+                else
+                {
+                    MessageBox.Show("Failed to load recipes for category.", "S.C.R.A.P",
+                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 }
             }
             catch (Exception ex)
@@ -281,23 +406,32 @@ namespace SCRAP.winforms.Forms.Technical
         {
             if (cmbCategory.SelectedValue is not int categoryId)
             {
-                MessageBox.Show("Select a category first.", "S.C.R.A.P",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
-            }
-            if (_recipes.Count == 0)
-            {
-                MessageBox.Show("Preview the yield first.", "S.C.R.A.P",
+                MessageBox.Show("Please select a device category first.", "Select Category",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
 
+            int qty = (int)numQuantity.Value;
+
+            // If recipes not yet loaded, load and check stock now
+            if (_recipes.Count == 0)
+            {
+                await PreviewYield();
+                if (_recipes.Count == 0) return;
+            }
+
+            // Pop-up dialog allowing the tech staff to see the expected yields and manipulate them or not
+            using var dlg = new TeardownYieldAdjustmentDialog(cmbCategory.Text, qty, _recipes);
+            if (dlg.ShowDialog(this) != DialogResult.OK) return;
+
+            var overrides = dlg.GetYieldOverrides();
+
             var request = new
             {
-                ProcessedByUserId = 1,
+                ProcessedByUserId = CurrentSession.UserId > 0 ? CurrentSession.UserId : 1,
                 DeviceCategoryId = categoryId,
-                Quantity = (int)numQuantity.Value,
-                Overrides = (Dictionary<string, decimal>?)null
+                Quantity = qty,
+                Overrides = overrides
             };
 
             try
@@ -305,8 +439,11 @@ namespace SCRAP.winforms.Forms.Technical
                 var res = await ApiConfig.Http.PostAsJsonAsync("api/Teardown", request);
                 if (res.IsSuccessStatusCode)
                 {
-                    MessageBox.Show("Teardown recorded successfully.", "S.C.R.A.P",
-                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    MessageBox.Show(
+                        $"Teardown for {qty}x {cmbCategory.Text} recorded successfully!\n\nRaw material yields have been updated in inventory.",
+                        "Teardown Recorded",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Information);
                     dgvPreview.DataSource = null;
                     _recipes.Clear();
                     await LoadHistory();
@@ -314,8 +451,24 @@ namespace SCRAP.winforms.Forms.Technical
                 else
                 {
                     var body = await res.Content.ReadAsStringAsync();
-                    MessageBox.Show("Teardown failed: " + res.StatusCode + "\n" + body, "S.C.R.A.P",
-                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    string errorMsg = "Teardown operation failed.";
+                    try
+                    {
+                        using var doc = System.Text.Json.JsonDocument.Parse(body);
+                        if (doc.RootElement.TryGetProperty("message", out var m) && !string.IsNullOrWhiteSpace(m.GetString()))
+                            errorMsg = m.GetString()!;
+                        else if (doc.RootElement.TryGetProperty("detail", out var d) && !string.IsNullOrWhiteSpace(d.GetString()))
+                            errorMsg = d.GetString()!;
+                        else if (doc.RootElement.TryGetProperty("title", out var t) && !string.IsNullOrWhiteSpace(t.GetString()))
+                            errorMsg = t.GetString()!;
+                    }
+                    catch
+                    {
+                        if (!string.IsNullOrWhiteSpace(body))
+                            errorMsg = body;
+                    }
+
+                    MessageBox.Show(errorMsg, "Teardown Failed", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 }
             }
             catch (Exception ex)
@@ -333,8 +486,19 @@ namespace SCRAP.winforms.Forms.Technical
                 if (res.IsSuccessStatusCode)
                 {
                     var data = await res.Content.ReadFromJsonAsync<List<TeardownBatch>>();
-                    dgvHistory.DataSource = data;
-                    ConfigureHistoryColumns();
+                    if (data != null)
+                    {
+                        var rows = data.ConvertAll(b => new
+                        {
+                            BatchCode = $"BAT-{b.Id:D4}",
+                            Date = b.DateProcessed.ToLocalTime().ToString("yyyy-MM-dd HH:mm"),
+                            Category = b.DeviceCategory?.Name ?? $"Category #{b.DeviceCategoryId}",
+                            Quantity = b.QuantityDismantled,
+                            Yields = $"{b.Yields?.Count ?? 0} material(s)",
+                            Branch = b.Branch?.Name ?? $"Branch #{b.BranchId}"
+                        });
+                        dgvHistory.DataSource = rows;
+                    }
                 }
             }
             catch (Exception ex)

@@ -1,16 +1,16 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="Current" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <Compile Update="Forms\Admin\CompanyFinanceMonitorForm.cs">
-      <SubType>Form</SubType>
-    </Compile>
     <Compile Update="Forms\Admin\Mainform.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Update="Forms\Form1.cs">
+    <Compile Update="Forms\Common\CloudSyncBadgeControl.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Forms\Common\CloudSyncDialog.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Update="Forms\Manager\CompanyFinanceForm.cs">
+    <Compile Update="Forms\Common\ProcurementDetailsDialog.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Update="Forms\Manager\ManagerMainForm.cs">
@@ -22,7 +22,52 @@
     <Compile Update="Forms\Sales\SalesMainForm.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Update="Forms\Sales\SalesProcurementForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Forms\SuperAdmin\AddEditTenantUserDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Forms\SuperAdmin\CustomizePlanDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Forms\SuperAdmin\EditTenantPlanDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Forms\SuperAdmin\ManageCompanyDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Forms\SuperAdmin\PlatformTermsForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Forms\SuperAdmin\RegisterTenantForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Forms\SuperAdmin\RenewSubscriptionDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Forms\SuperAdmin\SubscriptionPlansOverviewForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Forms\SuperAdmin\SuperAdminMainForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Forms\SuperAdmin\SuperAdminReportsForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Forms\SuperAdmin\SuperAdminUsersForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Forms\SuperAdmin\TenantManagementForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Forms\Technical\TeardownYieldAdjustmentDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Update="Forms\Technical\TechnicalMainForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Forms\Technical\TechProcurementArrivalForm.cs">
       <SubType>Form</SubType>
     </Compile>
   </ItemGroup>

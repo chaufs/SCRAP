@@ -1,7 +1,8 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
+using System.Linq;
 using System.Net.Http.Json;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -10,7 +11,7 @@ using SCRAP.domain.entities;
 namespace SCRAP.winforms.Forms.Technical
 {
     /// <summary>
-    /// Floor-operations dashboard for technical staff.
+    /// Floor-operations dashboard for technical staff with visual analytics.
     /// </summary>
     [DesignerCategory("Code")]
     public class TechnicalDashboardForm : Form
@@ -25,6 +26,9 @@ namespace SCRAP.winforms.Forms.Technical
         private Label valActive = null!;
         private Label valTeardowns = null!;
         private Label valRecovered = null!;
+
+        private BarChartControl chartBatchesByCategory = null!;
+        private DonutChartControl chartYieldMaterials = null!;
 
         private Label lblRecent = null!;
         private Panel cardHistory = null!;
@@ -56,10 +60,10 @@ namespace SCRAP.winforms.Forms.Technical
 
             lblSubtitle = new Label
             {
-                Text = "Today’s inventory and teardown activity",
+                Text = "Inventory, teardown dismantling throughput, and material recovery",
                 Left = 32,
                 Top = 64,
-                Width = 480,
+                Width = 520,
                 Height = 22,
                 Font = Theme.SubtitleFont,
                 ForeColor = Theme.MutedText,
@@ -85,7 +89,21 @@ namespace SCRAP.winforms.Forms.Technical
             cardRecovered = MakeStatCard("RECOVERED (kg)", "—", Theme.Blue);
             valRecovered = (Label)cardRecovered.Tag!;
 
-            lblRecent = Theme.CreateSectionTitle("Recent Teardown Batches", 32, 260);
+            chartBatchesByCategory = new BarChartControl
+            {
+                Title = "Dismantled Devices by Category",
+                Subtitle = "Throughput across device categories",
+                ValueSuffix = " units"
+            };
+
+            chartYieldMaterials = new DonutChartControl
+            {
+                Title = "Recovered Materials on Hand",
+                Subtitle = "Current commodity stock yield (kg)",
+                CenterLabel = "Total kg"
+            };
+
+            lblRecent = Theme.CreateSectionTitle("Recent Teardown Batches", 32, 400);
 
             cardHistory = new Panel
             {
@@ -108,8 +126,10 @@ namespace SCRAP.winforms.Forms.Technical
             Controls.Add(cardActive);
             Controls.Add(cardTeardowns);
             Controls.Add(cardRecovered);
-            Controls.Add(lblRecent);
-            Controls.Add(cardHistory);
+            Controls.Add(chartBatchesByCategory);
+            Controls.Add(chartYieldMaterials);
+            //Controls.Add(lblRecent);
+            //Controls.Add(cardHistory);
 
             Resize += (s, e) => LayoutControls();
             LayoutControls();
@@ -120,39 +140,49 @@ namespace SCRAP.winforms.Forms.Technical
             var card = new Panel
             {
                 Width = 240,
-                Height = 120,
+                Height = 100,
                 BackColor = Theme.White
             };
 
             var bar = new Panel
             {
-                Height = 3,
+                Height = 4,
                 Dock = DockStyle.Top,
                 BackColor = accent
-            };
-
-            var val = new Label
-            {
-                Text = value,
-                Left = 20,
-                Top = 28,
-                Width = 200,
-                Height = 40,
-                Font = Theme.StatValueFont,
-                ForeColor = Theme.DarkText,
-                BackColor = Color.Transparent
             };
 
             var lbl = new Label
             {
                 Text = label,
                 Left = 20,
-                Top = 78,
-                Width = 200,
-                Height = 22,
+                Top = 14,
+                Width = Math.Max(50, card.Width - 40),
+                Height = 18,
                 Font = Theme.StatLabelFont,
                 ForeColor = Theme.MutedText,
-                BackColor = Color.Transparent
+                BackColor = Color.Transparent,
+                UseMnemonic = false
+            };
+
+            var val = new Label
+            {
+                Text = value,
+                Left = 20,
+                Top = 34,
+                Width = Math.Max(50, card.Width - 40),
+                Height = 42,
+                Font = Theme.StatValueFont,
+                ForeColor = Theme.DarkText,
+                BackColor = Color.Transparent,
+                TextAlign = ContentAlignment.MiddleRight,
+                UseMnemonic = false
+            };
+
+            card.Resize += (s, e) =>
+            {
+                int w = Math.Max(10, card.Width - 40);
+                lbl.Width = w;
+                val.Width = w;
             };
 
             card.Controls.Add(bar);
@@ -169,8 +199,9 @@ namespace SCRAP.winforms.Forms.Technical
 
             int gap = 20;
             int startX = 32;
-            int y = 110;
-            int cardW = Math.Max(200, (ClientSize.Width - 64 - gap * 2) / 3);
+            int y = 105;
+            int availableW = Math.Max(200, ClientSize.Width - 64);
+            int cardW = (availableW - (gap * 2)) / 3;
 
             cardActive.Left = startX;
             cardActive.Top = y;
@@ -184,13 +215,28 @@ namespace SCRAP.winforms.Forms.Technical
             cardRecovered.Top = y;
             cardRecovered.Width = cardW;
 
-            lblRecent.Top = 260;
+            int chartY = y + 115;
+            int chartH = 200;
+            int chartW = (availableW - gap) / 2;
+
+            chartBatchesByCategory.Left = startX;
+            chartBatchesByCategory.Top = chartY;
+            chartBatchesByCategory.Width = chartW;
+            chartBatchesByCategory.Height = chartH;
+
+            chartYieldMaterials.Left = startX + chartW + gap;
+            chartYieldMaterials.Top = chartY;
+            chartYieldMaterials.Width = chartW;
+            chartYieldMaterials.Height = chartH;
+
+            int tableY = chartY + chartH + 16;
+            lblRecent.Top = tableY;
             lblRecent.Left = 32;
 
             cardHistory.Left = 32;
-            cardHistory.Top = 292;
-            cardHistory.Width = Math.Max(400, ClientSize.Width - 64);
-            cardHistory.Height = Math.Max(180, ClientSize.Height - 320);
+            cardHistory.Top = tableY + 28;
+            cardHistory.Width = availableW;
+            cardHistory.Height = Math.Max(160, ClientSize.Height - cardHistory.Top - 24);
 
             if (dgvRecent.Columns.Count > 0)
                 Theme.FillColumnsToWidth(dgvRecent);
@@ -202,32 +248,27 @@ namespace SCRAP.winforms.Forms.Technical
                 dgvRecent,
                 new Dictionary<string, (string, int)>(StringComparer.OrdinalIgnoreCase)
                 {
-                    ["Id"] = ("Batch ID", 90),
-                    ["ProcessedByUserId"] = ("Processed By", 120),
-                    ["ProcessedBy"] = ("Processed By", 120),
-                    ["DeviceCategoryId"] = ("Category ID", 110),
-                    ["CategoryId"] = ("Category ID", 110),
-                    ["Quantity"] = ("Quantity", 100),
-                    ["QuantityDismantled"] = ("Quantity", 100),
-                    ["DateProcessed"] = ("Date Processed", 180),
-                    ["ProcessedAt"] = ("Date Processed", 180),
-                    ["TotalWeightKg"] = ("Total Weight (kg)", 140),
-                    ["Notes"] = ("Notes", 180)
+                    ["BatchCode"] = ("Batch #", 95),
+                    ["DateProcessed"] = ("Date Processed", 140),
+                    ["Category"] = ("Device Category", 150),
+                    ["Quantity"] = ("Qty Dismantled", 110),
+                    ["YieldSummary"] = ("Recovered Materials", 160),
+                    ["Branch"] = ("Branch", 130),
+                    ["ProcessedBy"] = ("Processed By", 120)
                 },
-                "DeviceCategory", "User", "RawInventories", "ProcessedByUser",
-                "DeviceCategoryNavigation", "ProcessedByUserNavigation");
+                "Id", "DeviceCategory", "User", "RawInventories", "ProcessedByUser", "ProcessedByUserId", "DeviceCategoryId", "CategoryId",
+                "DeviceCategoryNavigation", "ProcessedByUserNavigation", "Yields", "BranchId");
         }
 
         private async Task LoadData()
         {
-            await Task.WhenAll(LoadSummary(), LoadRecentTeardowns());
+            await Task.WhenAll(LoadSummary(), LoadRecentTeardowns(), LoadCommodityStock());
         }
 
         private async Task LoadSummary()
         {
             try
             {
-                // Prefer technical/floor-oriented summary if available; fall back to general dashboard
                 var res = await ApiConfig.Http.GetAsync("api/Dashboard/summary");
                 if (res.IsSuccessStatusCode)
                 {
@@ -236,7 +277,6 @@ namespace SCRAP.winforms.Forms.Technical
                     {
                         valActive.Text = data.ActiveInventoryCount.ToString("N0");
                         valRecovered.Text = data.TotalRecoveredWeightKg.ToString("N1");
-                        // Teardown count may not be on this DTO — filled from history below if needed
                         if (data.TeardownBatchCount > 0)
                             valTeardowns.Text = data.TeardownBatchCount.ToString("N0");
                     }
@@ -244,7 +284,7 @@ namespace SCRAP.winforms.Forms.Technical
             }
             catch
             {
-                // Non-fatal; history still loads
+                // Non-fatal
             }
         }
 
@@ -256,18 +296,58 @@ namespace SCRAP.winforms.Forms.Technical
                 if (res.IsSuccessStatusCode)
                 {
                     var data = await res.Content.ReadFromJsonAsync<List<TeardownBatch>>() ?? new();
-                    dgvRecent.DataSource = data;
+                    var displayList = data.Select(b => new
+                    {
+                        BatchCode = $"BAT-{b.Id:D4}",
+                        DateProcessed = b.DateProcessed.ToLocalTime().ToString("yyyy-MM-dd HH:mm"),
+                        Category = b.DeviceCategory?.Name ?? $"Category #{b.DeviceCategoryId}",
+                        Quantity = b.QuantityDismantled,
+                        YieldSummary = b.Yields != null && b.Yields.Count > 0 ? $"{b.Yields.Count} mat ({b.Yields.Sum(y => y.WeightKg):N2} kg)" : "0 materials",
+                        Branch = b.Branch?.Name ?? $"Branch #{b.BranchId}",
+                        ProcessedBy = b.ProcessedByUserId > 0 ? $"User #{b.ProcessedByUserId}" : "—"
+                    }).ToList();
+
+                    dgvRecent.DataSource = displayList;
                     ConfigureHistoryColumns();
 
-                    // If summary didn't provide batch count, use history length
                     if (valTeardowns.Text == "—" || valTeardowns.Text == "0")
                         valTeardowns.Text = data.Count.ToString("N0");
+
+                    // Populate Dismantled Devices by Category Bar Chart
+                    var categoryPoints = data
+                        .GroupBy(b => b.DeviceCategory?.Name ?? $"Category #{b.DeviceCategoryId}")
+                        .Select(g => new ChartDataPoint(g.Key, g.Sum(b => b.QuantityDismantled)))
+                        .OrderByDescending(p => p.Value)
+                        .Take(6)
+                        .ToList();
+                    chartBatchesByCategory.SetData(categoryPoints);
                 }
             }
             catch (Exception ex)
             {
                 MessageBox.Show("Error loading teardown history: " + ex.Message, "S.C.R.A.P",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private async Task LoadCommodityStock()
+        {
+            try
+            {
+                var res = await ApiConfig.Http.GetAsync("api/RawInventory");
+                if (res.IsSuccessStatusCode)
+                {
+                    var data = await res.Content.ReadFromJsonAsync<List<RawInventory>>() ?? new();
+                    var points = data
+                        .Where(r => r.CurrentTotalWeightKg > 0)
+                        .Select(r => new ChartDataPoint(r.MaterialName, r.CurrentTotalWeightKg))
+                        .ToList();
+                    chartYieldMaterials.SetData(points);
+                }
+            }
+            catch
+            {
+                chartYieldMaterials.SetData(new List<ChartDataPoint>());
             }
         }
 

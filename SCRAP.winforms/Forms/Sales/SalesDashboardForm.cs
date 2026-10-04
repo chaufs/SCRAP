@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
@@ -11,7 +11,7 @@ using SCRAP.domain.entities;
 namespace SCRAP.winforms.Forms.Sales
 {
     /// <summary>
-    /// Sales-focused dashboard: commodities on hand, recent sales, revenue snapshot.
+    /// Sales-focused dashboard: commodities on hand, recent sales, revenue snapshot, and visual graphs.
     /// </summary>
     [DesignerCategory("Code")]
     public class SalesDashboardForm : Form
@@ -26,6 +26,9 @@ namespace SCRAP.winforms.Forms.Sales
         private Label valMaterials = null!;
         private Label valSalesCount = null!;
         private Label valRevenue = null!;
+
+        private BarChartControl chartRevenueByMaterial = null!;
+        private DonutChartControl chartStockWeight = null!;
 
         private Label lblRecent = null!;
         private Panel cardHistory = null!;
@@ -57,10 +60,10 @@ namespace SCRAP.winforms.Forms.Sales
 
             lblSubtitle = new Label
             {
-                Text = "Recovered stock and sales performance",
+                Text = "Recovered stock, sales performance, and commodity revenue analytics",
                 Left = 32,
                 Top = 64,
-                Width = 480,
+                Width = 520,
                 Height = 22,
                 Font = Theme.SubtitleFont,
                 ForeColor = Theme.MutedText,
@@ -86,7 +89,21 @@ namespace SCRAP.winforms.Forms.Sales
             cardRevenue = MakeStatCard("REVENUE", "—", Theme.Blue);
             valRevenue = (Label)cardRevenue.Tag!;
 
-            lblRecent = Theme.CreateSectionTitle("Recent Sales", 32, 260);
+            chartRevenueByMaterial = new BarChartControl
+            {
+                Title = "Sales Revenue by Commodity",
+                Subtitle = "Revenue generated per material (₱)",
+                ValuePrefix = "₱"
+            };
+
+            chartStockWeight = new DonutChartControl
+            {
+                Title = "Available Commodity Stock",
+                Subtitle = "Weight breakdown of recovered stock (kg)",
+                CenterLabel = "Total kg"
+            };
+
+            lblRecent = Theme.CreateSectionTitle("Recent Sales", 32, 400);
 
             cardHistory = new Panel
             {
@@ -109,6 +126,8 @@ namespace SCRAP.winforms.Forms.Sales
             Controls.Add(cardMaterials);
             Controls.Add(cardSalesCount);
             Controls.Add(cardRevenue);
+            Controls.Add(chartRevenueByMaterial);
+            Controls.Add(chartStockWeight);
             Controls.Add(lblRecent);
             Controls.Add(cardHistory);
 
@@ -121,39 +140,49 @@ namespace SCRAP.winforms.Forms.Sales
             var card = new Panel
             {
                 Width = 240,
-                Height = 120,
+                Height = 100,
                 BackColor = Theme.White
             };
 
             var bar = new Panel
             {
-                Height = 3,
+                Height = 4,
                 Dock = DockStyle.Top,
                 BackColor = accent
-            };
-
-            var val = new Label
-            {
-                Text = value,
-                Left = 20,
-                Top = 28,
-                Width = 200,
-                Height = 40,
-                Font = Theme.StatValueFont,
-                ForeColor = Theme.DarkText,
-                BackColor = Color.Transparent
             };
 
             var lbl = new Label
             {
                 Text = label,
                 Left = 20,
-                Top = 78,
-                Width = 200,
-                Height = 22,
+                Top = 14,
+                Width = Math.Max(50, card.Width - 40),
+                Height = 18,
                 Font = Theme.StatLabelFont,
                 ForeColor = Theme.MutedText,
-                BackColor = Color.Transparent
+                BackColor = Color.Transparent,
+                UseMnemonic = false
+            };
+
+            var val = new Label
+            {
+                Text = value,
+                Left = 20,
+                Top = 34,
+                Width = Math.Max(50, card.Width - 40),
+                Height = 42,
+                Font = Theme.StatValueFont,
+                ForeColor = Theme.DarkText,
+                BackColor = Color.Transparent,
+                TextAlign = ContentAlignment.MiddleRight,
+                UseMnemonic = false
+            };
+
+            card.Resize += (s, e) =>
+            {
+                int w = Math.Max(10, card.Width - 40);
+                lbl.Width = w;
+                val.Width = w;
             };
 
             card.Controls.Add(bar);
@@ -170,8 +199,9 @@ namespace SCRAP.winforms.Forms.Sales
 
             int gap = 20;
             int startX = 32;
-            int y = 110;
-            int cardW = Math.Max(200, (ClientSize.Width - 64 - gap * 2) / 3);
+            int y = 105;
+            int availableW = Math.Max(200, ClientSize.Width - 64);
+            int cardW = (availableW - (gap * 2)) / 3;
 
             cardMaterials.Left = startX;
             cardMaterials.Top = y;
@@ -185,13 +215,28 @@ namespace SCRAP.winforms.Forms.Sales
             cardRevenue.Top = y;
             cardRevenue.Width = cardW;
 
-            lblRecent.Top = 260;
+            int chartY = y + 115;
+            int chartH = 200;
+            int chartW = (availableW - gap) / 2;
+
+            chartRevenueByMaterial.Left = startX;
+            chartRevenueByMaterial.Top = chartY;
+            chartRevenueByMaterial.Width = chartW;
+            chartRevenueByMaterial.Height = chartH;
+
+            chartStockWeight.Left = startX + chartW + gap;
+            chartStockWeight.Top = chartY;
+            chartStockWeight.Width = chartW;
+            chartStockWeight.Height = chartH;
+
+            int tableY = chartY + chartH + 16;
+            lblRecent.Top = tableY;
             lblRecent.Left = 32;
 
             cardHistory.Left = 32;
-            cardHistory.Top = 292;
-            cardHistory.Width = Math.Max(400, ClientSize.Width - 64);
-            cardHistory.Height = Math.Max(180, ClientSize.Height - 320);
+            cardHistory.Top = tableY + 28;
+            cardHistory.Width = availableW;
+            cardHistory.Height = Math.Max(160, ClientSize.Height - cardHistory.Top - 24);
 
             if (dgvRecent.Columns.Count > 0)
                 Theme.FillColumnsToWidth(dgvRecent);
@@ -212,7 +257,8 @@ namespace SCRAP.winforms.Forms.Sales
                     ["InvoiceNumber"] = ("Invoice #", 130),
                     ["SaleDate"] = ("Sale Date", 160),
                     ["Notes"] = ("Notes", 160)
-                });
+                },
+                "Branch", "BranchId");
         }
 
         private async Task LoadData()
@@ -230,11 +276,18 @@ namespace SCRAP.winforms.Forms.Sales
                     var data = await res.Content.ReadFromJsonAsync<List<RawInventory>>() ?? new();
                     var distinct = data.Select(x => x.MaterialName).Where(n => !string.IsNullOrWhiteSpace(n)).Distinct().Count();
                     valMaterials.Text = distinct.ToString("N0");
+
+                    // Populate stock weight donut chart
+                    var stockPoints = data
+                        .Where(r => r.CurrentTotalWeightKg > 0)
+                        .Select(r => new ChartDataPoint(r.MaterialName, r.CurrentTotalWeightKg))
+                        .ToList();
+                    chartStockWeight.SetData(stockPoints);
                 }
             }
             catch
             {
-                // non-fatal
+                chartStockWeight.SetData(new List<ChartDataPoint>());
             }
         }
 
@@ -249,11 +302,18 @@ namespace SCRAP.winforms.Forms.Sales
                     dgvRecent.DataSource = data;
                     ConfigureSalesColumns();
 
+                    decimal revenue = data.Sum(s => s.TotalAmount != 0 ? s.TotalAmount : s.QuantityKg * s.PricePerKg);
+                    valRevenue.Text = "₱" + revenue.ToString("N2");
                     valSalesCount.Text = data.Count.ToString("N0");
 
-                    decimal revenue = data.Sum(s =>
-                        s.TotalAmount != 0 ? s.TotalAmount : s.QuantityKg * s.PricePerKg);
-                    valRevenue.Text = revenue.ToString("N2");
+                    // Populate Revenue by Commodity Bar Chart
+                    var revenuePoints = data
+                        .GroupBy(s => s.MaterialName)
+                        .Select(g => new ChartDataPoint(g.Key, g.Sum(s => s.TotalAmount != 0 ? s.TotalAmount : s.QuantityKg * s.PricePerKg)))
+                        .OrderByDescending(p => p.Value)
+                        .Take(7)
+                        .ToList();
+                    chartRevenueByMaterial.SetData(revenuePoints);
                 }
             }
             catch (Exception ex)

@@ -68,6 +68,7 @@ namespace SCRAP.API.Services
         private static decimal GetDailyRate(Employee employee, int workdays)
         {
             return employee.PayType switch
+
             {
                 PayType.Monthly => workdays == 0 ? 0m : employee.PayRate / workdays,
                 PayType.Daily => employee.PayRate,

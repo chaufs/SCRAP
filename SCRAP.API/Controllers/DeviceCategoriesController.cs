@@ -9,8 +9,8 @@ namespace SCRAP.API.Controllers
     [Route("api/[controller]")]
     public class DeviceCategoriesController : ControllerBase
     {
-        private readonly MasterErpDbContext _db;
-        public DeviceCategoriesController(MasterErpDbContext db) => _db = db;
+        private readonly TenantErpDbContext _db;
+        public DeviceCategoriesController(TenantErpDbContext db) => _db = db;
 
         [HttpGet]
         public async Task<IActionResult> GetAll() =>

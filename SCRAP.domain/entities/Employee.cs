@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 namespace SCRAP.domain.entities
 {
@@ -30,7 +30,13 @@ namespace SCRAP.domain.entities
         // Contact
         public string? ContactNumber { get; set; }
         public string? EmailAddress { get; set; }
-        public string? Address { get; set; }
+
+        // Address
+        public string? Street   { get; set; }
+        public string? Barangay { get; set; }
+        public string? City     { get; set; }
+        public string? Province { get; set; }
+        public string? Country  { get; set; }
 
         // Job
         public string Position { get; set; } = string.Empty;
@@ -44,6 +50,10 @@ namespace SCRAP.domain.entities
 
         // Optional link to a login account (null = employee with no system access)
         public int? UserId { get; set; }
+
+        // Branch assignment
+        public int? BranchId { get; set; }
+        public Branch? Branch { get; set; }
 
         public string? Notes { get; set; }
     }

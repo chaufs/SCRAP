@@ -9,9 +9,9 @@ namespace SCRAP.API.Controllers
     [Route("api/[controller]")]
     public class UsersController : ControllerBase
     {
-        private readonly MasterErpDbContext _db;
+        private readonly TenantErpDbContext _db;
         private readonly ILogger<UsersController> _logger;
-        public UsersController(MasterErpDbContext db, ILogger<UsersController> logger)
+        public UsersController(TenantErpDbContext db, ILogger<UsersController> logger)
         {
             _db = db;
             _logger = logger;

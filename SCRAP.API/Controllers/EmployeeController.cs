@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SCRAP.domain.entities;
 using SCRAP.infrastructure.data;
@@ -9,8 +9,8 @@ namespace SCRAP.API.Controllers
     [Route("api/[controller]")]
     public class EmployeesController : ControllerBase
     {
-        private readonly MasterErpDbContext _db;
-        public EmployeesController(MasterErpDbContext db) => _db = db;
+        private readonly TenantErpDbContext _db;
+        public EmployeesController(TenantErpDbContext db) => _db = db;
 
         [HttpGet]
         public async Task<IActionResult> GetAll()
@@ -88,7 +88,11 @@ namespace SCRAP.API.Controllers
                     LastName = request.LastName.Trim(),
                     ContactNumber = request.ContactNumber,
                     EmailAddress = request.EmailAddress,
-                    Address = request.Address,
+                    Street   = request.Street,
+                    Barangay = request.Barangay,
+                    City     = request.City,
+                    Province = request.Province,
+                    Country  = request.Country,
                     Position = request.Position.Trim(),
                     Department = request.Department,
                     DateHired = request.DateHired == default ? DateTime.UtcNow : request.DateHired,
@@ -178,14 +182,138 @@ namespace SCRAP.API.Controllers
 
         // Deactivate rather than delete — you want employment history kept for audits
         [HttpPost("{id:int}/deactivate")]
+        [Microsoft.AspNetCore.Authorization.Authorize(Policy = "RequireAdmin")]
         public async Task<IActionResult> Deactivate(int id, [FromQuery] EmploymentStatus status = EmploymentStatus.Resigned)
         {
             var existing = await _db.Set<Employee>().FindAsync(id);
             if (existing is null) return NotFound();
 
             existing.Status = status;
+
+            // Deactivate linked user login account
+            if (existing.UserId.HasValue)
+            {
+                var user = await _db.Users.FindAsync(existing.UserId.Value);
+                if (user != null) user.IsActive = false;
+            }
+            else if (!string.IsNullOrWhiteSpace(existing.EmailAddress))
+            {
+                var user = await _db.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == existing.EmailAddress.ToLower());
+                if (user != null) user.IsActive = false;
+            }
+
             await _db.SaveChangesAsync();
             return Ok(existing);
+        }
+
+        [HttpPut("{id:int}")]
+        [Microsoft.AspNetCore.Authorization.Authorize(Policy = "RequireAdmin")]
+        public async Task<IActionResult> Update(int id, [FromBody] UpdateEmployeeRequest request)
+        {
+            var employee = await _db.Set<Employee>().FindAsync(id);
+            if (employee == null) return NotFound(new { message = "Employee not found." });
+
+            if (string.IsNullOrWhiteSpace(request.FirstName)) return BadRequest("First name is required.");
+            if (string.IsNullOrWhiteSpace(request.LastName)) return BadRequest("Last name is required.");
+            if (string.IsNullOrWhiteSpace(request.Position)) return BadRequest("Position is required.");
+            if (request.PayRate < 0) return BadRequest("Pay rate cannot be negative.");
+
+            employee.FirstName = request.FirstName.Trim();
+            employee.MiddleName = string.IsNullOrWhiteSpace(request.MiddleName) ? null : request.MiddleName.Trim();
+            employee.LastName = request.LastName.Trim();
+            employee.ContactNumber = request.ContactNumber;
+            employee.EmailAddress = request.EmailAddress;
+            employee.Street = request.Street;
+            employee.Barangay = request.Barangay;
+            employee.City = request.City;
+            employee.Province = request.Province;
+            employee.Country = request.Country;
+            employee.Position = request.Position.Trim();
+            employee.Department = request.Department;
+            employee.PayType = request.PayType;
+            employee.PayRate = request.PayRate;
+            employee.Status = request.Status;
+            employee.Notes = request.Notes;
+
+            // Sync user account active status if employee has a linked login account
+            bool shouldBeActive = (request.Status == EmploymentStatus.Active && request.IsActive);
+            UserManagement? user = null;
+            if (employee.UserId.HasValue)
+            {
+                user = await _db.Users.FirstOrDefaultAsync(u => u.Id == employee.UserId.Value);
+            }
+            if (user == null && !string.IsNullOrWhiteSpace(employee.EmailAddress))
+            {
+                user = await _db.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == employee.EmailAddress.ToLower());
+                if (user != null) employee.UserId = user.Id;
+            }
+
+            if (user != null)
+            {
+                user.IsActive = shouldBeActive;
+            }
+
+            await _db.SaveChangesAsync();
+            return Ok(employee);
+        }
+
+        [HttpPost("{id:int}/toggle-status")]
+        [Microsoft.AspNetCore.Authorization.Authorize(Policy = "RequireAdmin")]
+        public async Task<IActionResult> ToggleStatus(int id)
+        {
+            var employee = await _db.Set<Employee>().FindAsync(id);
+            if (employee == null) return NotFound(new { message = "Employee not found." });
+
+            bool isCurrentlyActive = (employee.Status == EmploymentStatus.Active);
+            employee.Status = isCurrentlyActive ? EmploymentStatus.Resigned : EmploymentStatus.Active;
+
+            // Sync linked login account
+            UserManagement? user = null;
+            if (employee.UserId.HasValue)
+            {
+                user = await _db.Users.FirstOrDefaultAsync(u => u.Id == employee.UserId.Value);
+            }
+            if (user == null && !string.IsNullOrWhiteSpace(employee.EmailAddress))
+            {
+                user = await _db.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == employee.EmailAddress.ToLower());
+                if (user != null) employee.UserId = user.Id;
+            }
+
+            if (user != null)
+            {
+                user.IsActive = !isCurrentlyActive;
+            }
+
+            await _db.SaveChangesAsync();
+            return Ok(new
+            {
+                employee.Id,
+                employee.EmployeeCode,
+                Status = employee.Status.ToString(),
+                IsActive = (employee.Status == EmploymentStatus.Active),
+                UserAccountDisabled = (user != null && !user.IsActive)
+            });
+        }
+
+        public class UpdateEmployeeRequest
+        {
+            public string FirstName { get; set; } = "";
+            public string? MiddleName { get; set; }
+            public string LastName { get; set; } = "";
+            public string? ContactNumber { get; set; }
+            public string? EmailAddress { get; set; }
+            public string? Street   { get; set; }
+            public string? Barangay { get; set; }
+            public string? City     { get; set; }
+            public string? Province { get; set; }
+            public string? Country  { get; set; }
+            public string Position { get; set; } = "";
+            public string Department { get; set; } = "";
+            public PayType PayType { get; set; }
+            public decimal PayRate { get; set; }
+            public EmploymentStatus Status { get; set; } = EmploymentStatus.Active;
+            public bool IsActive { get; set; } = true;
+            public string? Notes { get; set; }
         }
 
         public class CreateEmployeeWithAccountRequest
@@ -195,7 +323,11 @@ namespace SCRAP.API.Controllers
             public string LastName { get; set; } = "";
             public string? ContactNumber { get; set; }
             public string? EmailAddress { get; set; }
-            public string? Address { get; set; }
+            public string? Street   { get; set; }
+            public string? Barangay { get; set; }
+            public string? City     { get; set; }
+            public string? Province { get; set; }
+            public string? Country  { get; set; }
             public string Position { get; set; } = "";
             public string Department { get; set; } = "";
             public DateTime DateHired { get; set; }

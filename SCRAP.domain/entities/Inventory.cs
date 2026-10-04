@@ -23,9 +23,14 @@ namespace SCRAP.domain.entities
         public decimal? PurchaseCost { get; set; }
         public int? ProcurementQuantity { get; set; }
         public string? Notes { get; set; }
-        public bool HasStorageDevice { get; set; }   // ← add this
+        public bool HasStorageDevice { get; set; }
+        public string? RecordedByUsername { get; set; }
+
+        // Branch this item belongs to
+        public int BranchId { get; set; }
 
         // Navigation
         public DeviceCategory? DeviceCategory { get; set; }
+        public Branch? Branch { get; set; }
     }
 }

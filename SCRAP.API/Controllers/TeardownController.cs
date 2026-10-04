@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SCRAP.infrastructure.data;
 using SCRAP.domain.entities;
+using System.Security.Claims;
 
 namespace SCRAP.API.Controllers
 {
@@ -9,11 +10,15 @@ namespace SCRAP.API.Controllers
     [Route("api/[controller]")]
     public class TeardownController : ControllerBase
     {
-        private readonly MasterErpDbContext _db;
-        public TeardownController(MasterErpDbContext db)
+        private readonly TenantErpDbContext _db;
+        public TeardownController(TenantErpDbContext db) => _db = db;
+
+        private int? CallerBranchId()
         {
-            _db = db;
+            var val = User.FindFirstValue("BranchId");
+            return int.TryParse(val, out var id) ? id : (int?)null;
         }
+        private bool IsAdmin() => User.IsInRole("Admin") || User.IsInRole("Superadmin");
 
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Teardown>>> GetAll() => await _db.Teardowns.Include(t => t.InventoryItem).ToListAsync();
@@ -24,6 +29,34 @@ namespace SCRAP.API.Controllers
             var item = await _db.Teardowns.Include(t => t.InventoryItem).FirstOrDefaultAsync(t => t.Id == id);
             if (item == null) return NotFound();
             return item;
+        }
+
+        [HttpGet("stock-check")]
+        public async Task<ActionResult> CheckStock([FromQuery] int categoryId, [FromQuery] int quantity = 1)
+        {
+            var category = await _db.DeviceCategories.FindAsync(categoryId);
+            if (category == null) return NotFound(new Models.ErrorResponse { Message = "Category not found." });
+
+            var inventoryQ = _db.Set<Inventory>()
+                .Where(i => i.DeviceCategoryId == categoryId && i.Status == InventoryStatus.InStock);
+
+            if (!IsAdmin())
+            {
+                var callerBranchId = CallerBranchId() ?? -1;
+                inventoryQ = inventoryQ.Where(i => i.BranchId == callerBranchId);
+            }
+
+            var inStockCount = await inventoryQ.CountAsync();
+            bool hasSufficientStock = inStockCount >= quantity && quantity > 0;
+
+            return Ok(new
+            {
+                categoryId,
+                categoryName = category.Name,
+                availableStock = inStockCount,
+                requestedQuantity = quantity,
+                hasSufficientStock
+            });
         }
 
         [HttpPost]
@@ -39,9 +72,17 @@ namespace SCRAP.API.Controllers
             var recipes = await _db.ArchetypeRecipes.Where(r => r.DeviceCategoryId == request.DeviceCategoryId).ToListAsync();
             if (recipes == null || recipes.Count == 0) return BadRequest(new Models.ErrorResponse { Message = "No archetype recipes defined for that device category" });
 
-            // check enough devices are available in inventory
-            var availableDevices = await _db.Set<Inventory>()
-                .Where(i => i.DeviceCategoryId == request.DeviceCategoryId && i.Status == InventoryStatus.InStock)
+            // check enough devices are available in inventory (scoped to caller's branch)
+            var inventoryQ = _db.Set<Inventory>()
+                .Where(i => i.DeviceCategoryId == request.DeviceCategoryId && i.Status == InventoryStatus.InStock);
+
+            if (!IsAdmin())
+            {
+                var callerBranchId = CallerBranchId() ?? -1;
+                inventoryQ = inventoryQ.Where(i => i.BranchId == callerBranchId);
+            }
+
+            var availableDevices = await inventoryQ
                 .OrderBy(i => i.DateReceived)
                 .Take(request.Quantity)
                 .ToListAsync();
@@ -50,12 +91,16 @@ namespace SCRAP.API.Controllers
                 return BadRequest(new Models.ErrorResponse { Message = $"Only {availableDevices.Count} device(s) available in this category, but {request.Quantity} requested." });
 
             // compute yields
+            var overrideDict = request.Overrides != null
+                ? new Dictionary<string, decimal>(request.Overrides, StringComparer.OrdinalIgnoreCase)
+                : null;
+
             var yields = new List<TeardownYield>();
             foreach (var r in recipes)
             {
                 var expected = r.WeightKgPerUnit * request.Quantity;
-                var finalWeight = request.Overrides != null && request.Overrides.TryGetValue(r.MaterialName, out var over)
-                    ? over
+                var finalWeight = overrideDict != null && overrideDict.TryGetValue(r.MaterialName, out var over)
+                    ? Math.Max(0, over)
                     : expected;
 
                 yields.Add(new TeardownYield { MaterialName = r.MaterialName, WeightKg = finalWeight });
@@ -65,12 +110,21 @@ namespace SCRAP.API.Controllers
             using var tx = await _db.Database.BeginTransactionAsync();
             try
             {
+                var callerBranch = CallerBranchId();
+                var branchId = callerBranch ?? (IsAdmin() ? (availableDevices.FirstOrDefault()?.BranchId ?? 1) : 0);
+                if (branchId == 0) return BadRequest(new Models.ErrorResponse { Message = "User has no branch assigned." });
+
+                int processedById = request.ProcessedByUserId > 0 
+                    ? request.ProcessedByUserId 
+                    : (int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var uid) ? uid : 1);
+
                 var batch = new TeardownBatch
                 {
-                    ProcessedByUserId = request.ProcessedByUserId,
-                    DeviceCategoryId = request.DeviceCategoryId,
+                    ProcessedByUserId  = processedById,
+                    DeviceCategoryId   = request.DeviceCategoryId,
                     QuantityDismantled = request.Quantity,
-                    DateProcessed = DateTime.UtcNow
+                    DateProcessed      = DateTime.UtcNow,
+                    BranchId           = branchId
                 };
                 _db.TeardownBatches.Add(batch);
                 await _db.SaveChangesAsync();
@@ -157,11 +211,25 @@ namespace SCRAP.API.Controllers
         }
 
         [HttpGet("history")]
-        public async Task<ActionResult<IEnumerable<TeardownBatch>>> GetBatchHistory() =>
-            await _db.TeardownBatches
+        public async Task<ActionResult<IEnumerable<TeardownBatch>>> GetBatchHistory([FromQuery] int? branchId = null)
+        {
+            var q = _db.TeardownBatches
                 .Include(b => b.DeviceCategory)
                 .Include(b => b.Yields)
-                .OrderByDescending(b => b.DateProcessed)
-                .ToListAsync();
+                .Include(b => b.Branch)
+                .AsQueryable();
+
+            if (!IsAdmin())
+            {
+                var userBranchId = CallerBranchId() ?? -1;
+                q = q.Where(b => b.BranchId == userBranchId);
+            }
+            else if (branchId.HasValue && branchId.Value > 0)
+            {
+                q = q.Where(b => b.BranchId == branchId.Value);
+            }
+
+            return Ok(await q.OrderByDescending(b => b.DateProcessed).ToListAsync());
+        }
     }
 }

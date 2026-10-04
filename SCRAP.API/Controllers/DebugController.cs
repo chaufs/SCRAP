@@ -7,8 +7,8 @@ namespace SCRAP.API.Controllers
     [Route("api/[controller]")]
     public class DebugController : ControllerBase
     {
-        private readonly MasterErpDbContext _db;
-        public DebugController(MasterErpDbContext db)
+        private readonly TenantErpDbContext _db;
+        public DebugController(TenantErpDbContext db)
         {
             _db = db;
         }

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
@@ -19,6 +19,7 @@ namespace SCRAP.winforms.Forms.Sales
 
         private Panel formCard = null!;
         private ComboBox cmbMaterial = null!;
+        private Label lblMaterialStock = null!;
         private TextBox txtBuyer = null!;
         private TextBox txtQuantity = null!;
         private TextBox txtPricePerKg = null!;
@@ -32,6 +33,8 @@ namespace SCRAP.winforms.Forms.Sales
         private Panel cardHistory = null!;
         private DataGridView dgvSalesHistory = null!;
 
+        private List<RawInventory> _rawStock = new();
+
         public SalesForm()
         {
             Text = "Sales";
@@ -39,6 +42,8 @@ namespace SCRAP.winforms.Forms.Sales
             BackColor = Theme.Background;
             Dock = DockStyle.Fill;
             InitializeComponent();
+            _ = LoadMaterials();
+            _ = LoadSalesHistory();
         }
 
         private void InitializeComponent()
@@ -116,6 +121,21 @@ namespace SCRAP.winforms.Forms.Sales
             };
             Theme.StyleComboBox(cmbMaterial);
             formCard.Controls.Add(cmbMaterial);
+
+            lblMaterialStock = new Label
+            {
+                Left = pad,
+                Top = row1Y + 54,
+                Width = colW + 40,
+                Height = 18,
+                Font = new Font("Segoe UI", 8.5f, FontStyle.Bold),
+                ForeColor = Theme.MutedText,
+                BackColor = Color.Transparent,
+                Text = ""
+            };
+            formCard.Controls.Add(lblMaterialStock);
+
+            cmbMaterial.SelectedIndexChanged += (_, _) => UpdateSelectedMaterialStock();
 
             AddField(formCard, "Buyer", pad + colW + colGap, row1Y, out _, out _);
             txtBuyer = new TextBox
@@ -334,7 +354,8 @@ namespace SCRAP.winforms.Forms.Sales
                     ["InvoiceNumber"] = ("Invoice #", 130),
                     ["SaleDate"] = ("Sale Date", 160),
                     ["Notes"] = ("Notes", 140)
-                });
+                },
+                "Branch", "BranchId");
         }
 
         private async Task LoadMaterials()
@@ -344,16 +365,33 @@ namespace SCRAP.winforms.Forms.Sales
                 var res = await ApiConfig.Http.GetAsync("api/RawInventory");
                 if (res.IsSuccessStatusCode)
                 {
-                    var data = await res.Content.ReadFromJsonAsync<List<RawInventory>>()
+                    _rawStock = await res.Content.ReadFromJsonAsync<List<RawInventory>>()
                                ?? new List<RawInventory>();
-                    var materials = data
+
+                    var materialNames = _rawStock
                         .Select(x => x.MaterialName)
                         .Where(n => !string.IsNullOrWhiteSpace(n))
                         .Distinct(StringComparer.OrdinalIgnoreCase)
                         .OrderBy(n => n)
                         .ToList();
-                    cmbMaterial.DataSource = null;
-                    cmbMaterial.DataSource = materials;
+
+                    void Bind()
+                    {
+                        cmbMaterial.DataSource = null;
+                        if (materialNames.Count > 0)
+                        {
+                            cmbMaterial.DataSource = materialNames;
+                            UpdateSelectedMaterialStock();
+                        }
+                        else
+                        {
+                            lblMaterialStock.Text = "⚠️ No recovered commodities in stock";
+                            lblMaterialStock.ForeColor = ColorTranslator.FromHtml("#DC2626");
+                        }
+                    }
+
+                    if (InvokeRequired) Invoke(Bind);
+                    else Bind();
                 }
             }
             catch (Exception ex)
@@ -363,11 +401,38 @@ namespace SCRAP.winforms.Forms.Sales
             }
         }
 
+        private void UpdateSelectedMaterialStock()
+        {
+            if (cmbMaterial.SelectedItem is string matName)
+            {
+                var raw = _rawStock.FirstOrDefault(x => string.Equals(x.MaterialName, matName, StringComparison.OrdinalIgnoreCase));
+                decimal stock = raw?.CurrentTotalWeightKg ?? 0m;
+                if (stock > 0)
+                {
+                    lblMaterialStock.Text = $"✓ In-stock: {stock:N2} kg available";
+                    lblMaterialStock.ForeColor = ColorTranslator.FromHtml("#16A34A");
+                    txtQuantity.PlaceholderText = $"Max: {stock:N2}";
+                }
+                else
+                {
+                    lblMaterialStock.Text = "⚠️ 0.00 kg (Out of Stock)";
+                    lblMaterialStock.ForeColor = ColorTranslator.FromHtml("#DC2626");
+                    txtQuantity.PlaceholderText = "0.00";
+                }
+            }
+            else
+            {
+                lblMaterialStock.Text = "";
+                txtQuantity.PlaceholderText = "0.00";
+            }
+        }
+
         private async Task LogSale()
         {
-            if (cmbMaterial.SelectedItem is not string material)
+            string? material = cmbMaterial.SelectedItem as string;
+            if (string.IsNullOrWhiteSpace(material))
             {
-                MessageBox.Show("Select a material.", "S.C.R.A.P",
+                MessageBox.Show("Select a material from the dropdown.", "S.C.R.A.P",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
@@ -390,6 +455,14 @@ namespace SCRAP.winforms.Forms.Sales
                 return;
             }
 
+            var raw = _rawStock.FirstOrDefault(x => string.Equals(x.MaterialName, material, StringComparison.OrdinalIgnoreCase));
+            if (raw != null && raw.CurrentTotalWeightKg < qty)
+            {
+                MessageBox.Show($"Not enough {material} available in stock. Current available stock: {raw.CurrentTotalWeightKg:N2} kg.", "S.C.R.A.P",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
             var sale = new CommoditySale
             {
                 MaterialName = material,
@@ -406,7 +479,7 @@ namespace SCRAP.winforms.Forms.Sales
                 var res = await ApiConfig.Http.PostAsJsonAsync("api/CommoditySales", sale);
                 if (res.IsSuccessStatusCode)
                 {
-                    MessageBox.Show("Sale logged.", "S.C.R.A.P",
+                    MessageBox.Show("Sale logged successfully.", "S.C.R.A.P",
                         MessageBoxButtons.OK, MessageBoxIcon.Information);
                     txtBuyer.Clear();
                     txtQuantity.Clear();

@@ -1,51 +1,73 @@
+using System.Collections.Generic;
 using System.Security.Claims;
 using System.Text.Encodings.Web;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SCRAP.infrastructure.data;
-using Microsoft.EntityFrameworkCore;
-using System.Collections.Generic;
-using Microsoft.Extensions.Logging;
-using System.Threading.Tasks;
 
 namespace SCRAP.API
 {
-    // A very small API-key based auth handler for local WinForms usage.
-    // The WinForms client can pass header 'X-Api-User' with a username and the handler will create a ClaimsPrincipal
     public class ApiKeyAuthHandler : AuthenticationHandler<AuthenticationSchemeOptions>
     {
-        private readonly MasterErpDbContext _db;
+        private readonly TenantErpDbContext _tenantDb;
+        private readonly MasterErpDbContext _masterDb;
 
-        public ApiKeyAuthHandler(IOptionsMonitor<AuthenticationSchemeOptions> options, ILoggerFactory logger, UrlEncoder encoder, MasterErpDbContext db)
+        public ApiKeyAuthHandler(
+            IOptionsMonitor<AuthenticationSchemeOptions> options,
+            ILoggerFactory logger,
+            UrlEncoder encoder,
+            TenantErpDbContext tenantDb,
+            MasterErpDbContext masterDb)
             : base(options, logger, encoder)
         {
-            _db = db;
+            _tenantDb = tenantDb;
+            _masterDb = masterDb;
         }
 
         protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
         {
             if (!Request.Headers.TryGetValue("X-Api-User", out var userHeader))
-            {
                 return AuthenticateResult.NoResult();
+
+            var rawUser = userHeader.ToString();
+            var username = rawUser.Contains(',')
+                ? rawUser.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Last()
+                : rawUser.Trim();
+
+            // 1. Check if SuperAdmin in Master DB
+            var superAdmin = await _masterDb.SuperAdmins.FirstOrDefaultAsync(u => u.Username == username && u.IsActive);
+            if (superAdmin != null)
+            {
+                var superClaims = new List<Claim>
+                {
+                    new Claim(ClaimTypes.Name, superAdmin.Username),
+                    new Claim(ClaimTypes.NameIdentifier, superAdmin.Id.ToString()),
+                    new Claim(ClaimTypes.Role, "Superadmin"),
+                    new Claim("BranchId", "")
+                };
+                var superIdentity = new ClaimsIdentity(superClaims, Scheme.Name);
+                return AuthenticateResult.Success(new AuthenticationTicket(new ClaimsPrincipal(superIdentity), Scheme.Name));
             }
 
-            var username = userHeader.ToString();
-            var user = await _db.Users.FirstOrDefaultAsync(u => u.Username == username && u.IsActive);
+            // 2. Otherwise check Tenant DB
+            var user = await _tenantDb.Users.FirstOrDefaultAsync(u => u.Username == username && u.IsActive);
             if (user == null)
-            {
                 return AuthenticateResult.Fail("Invalid user header");
-            }
 
             var claims = new List<Claim>
             {
-                new System.Security.Claims.Claim(ClaimTypes.Name, user.Username),
-                new System.Security.Claims.Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                new System.Security.Claims.Claim(ClaimTypes.Role, user.Role.ToString())
+                new Claim(ClaimTypes.Name,           user.Username),
+                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                new Claim(ClaimTypes.Role,           user.Role.ToString()),
+                new Claim("BranchId", user.BranchId.HasValue ? user.BranchId.Value.ToString() : "")
             };
 
-            var identity = new ClaimsIdentity(claims, Scheme.Name);
+            var identity  = new ClaimsIdentity(claims, Scheme.Name);
             var principal = new ClaimsPrincipal(identity);
-            var ticket = new AuthenticationTicket(principal, Scheme.Name);
+            var ticket    = new AuthenticationTicket(principal, Scheme.Name);
             return AuthenticateResult.Success(ticket);
         }
     }

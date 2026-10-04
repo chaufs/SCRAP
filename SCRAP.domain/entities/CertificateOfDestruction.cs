@@ -1,12 +1,15 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace SCRAP.domain.entities
 {
     public enum DestructionMethod
     {
-        PhysicalShredding,
-        Crushing
+        PhysicalShredding = 0,
+        Crushing = 1,
+        Degaussing = 2,
+        Incineration = 3,
+        Disintegration = 4
     }
 
     public class CertificateOfDestruction

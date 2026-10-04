@@ -146,16 +146,14 @@ namespace SCRAP.winforms.Forms
                 {
                     ["Id"] = ("Product ID", 90),
                     ["DeviceName"] = ("Device Name", 180),
-                    ["DeviceCategoryId"] = ("Category", 100),
+                    ["Category"] = ("Category", 130),
                     ["SerialNumber"] = ("Serial Number", 150),
                     ["Status"] = ("Status", 100),
-                    ["DateReceived"] = ("Date Received", 180),
-                    ["Notes"] = ("Notes", 140),
-                    ["HasStorageDrive"] = ("Has Storage Device", 160),
-                    ["HasStorage"] = ("Has Storage Device", 160),
-                    ["HasStorageDevice"] = ("Has Storage Device", 160)
+                    ["DateReceived"] = ("Date Received", 120),
+                    ["HasStorage"] = ("Storage Device", 110),
+                    ["Notes"] = ("Notes", 140)
                 },
-                "DeviceCategory", "DeviceCategoryNavigation", "TeardownBatches");
+                "DeviceCategoryId", "DeviceCategory", "DeviceCategoryNavigation", "TeardownBatches", "Branch", "BranchId");
         }
 
         private void ConfigureCommodityColumns()
@@ -182,7 +180,20 @@ namespace SCRAP.winforms.Forms
                 var res = await ApiConfig.Http.GetAsync("api/Inventory");
                 if (res.IsSuccessStatusCode)
                 {
-                    dgvActive.DataSource = await res.Content.ReadFromJsonAsync<List<Inventory>>(ApiConfig.JsonOptions);
+                    var items = await res.Content.ReadFromJsonAsync<List<Inventory>>(ApiConfig.JsonOptions) ?? new();
+                    var displayList = items.Select(x => new
+                    {
+                        x.Id,
+                        DeviceName = x.DeviceName,
+                        Category = x.DeviceCategory?.Name ?? $"Category #{x.DeviceCategoryId}",
+                        SerialNumber = x.SerialNumber ?? "",
+                        Status = x.Status.ToString(),
+                        DateReceived = x.DateReceived.ToString("yyyy-MM-dd"),
+                        HasStorage = x.HasStorageDevice ? "Yes" : "No",
+                        Notes = x.Notes ?? ""
+                    }).ToList();
+
+                    dgvActive.DataSource = displayList;
                     ConfigureActiveColumns();
                 }
             }

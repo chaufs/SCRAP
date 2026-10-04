@@ -1,4 +1,4 @@
-﻿
+
 using System;
 using System.Drawing;
 using System.Windows.Forms;
@@ -20,16 +20,17 @@ public class ManagerMainForm : Form
     private Panel userArea = null!;
 
     private Button btnDashboard = null!;
-    private Button btnCertificates = null!;
-    private Button btnInventory = null!;
-    private Button btnAttendancePayroll = null!;
-    private Button btnFinance = null!;
-    private Button btnProcurement = null!;
+    private Button? btnCertificates;
+    private Button? btnInventory;
+    private Button? btnAttendancePayroll;
+    private Button? btnFinance;
+    private Button? btnProcurement;
+    private Button btnMyPortal = null!;
     private Button? _activeNav;
 
     public ManagerMainForm()
     {
-        Text = "S.C.R.A.P — Manager";
+        Text = $"S.C.R.A.P — Manager — {CurrentSession.GetCompanyDisplay()}";
         Width = 1200;
         Height = 750;
         MinimumSize = new Size(1000, 600);
@@ -57,7 +58,7 @@ public class ManagerMainForm : Form
             Left = 0,
             Top = 0,
             Width = 240,
-            Height = 80,
+            Height = 114,
             BackColor = Theme.SidebarBg
         };
 
@@ -66,7 +67,7 @@ public class ManagerMainForm : Form
             Left = 0,
             Top = 0,
             Width = 4,
-            Height = 80,
+            Height = 114,
             BackColor = Theme.Green
         };
 
@@ -74,9 +75,9 @@ public class ManagerMainForm : Form
         {
             Text = "S.C.R.A.P",
             Left = 20,
-            Top = 18,
+            Top = 14,
             Width = 200,
-            Height = 28,
+            Height = 26,
             Font = new Font("Segoe UI", 16, FontStyle.Bold),
             ForeColor = Color.White,
             BackColor = Color.Transparent
@@ -86,7 +87,7 @@ public class ManagerMainForm : Form
         {
             Text = "Manager Console",
             Left = 20,
-            Top = 48,
+            Top = 40,
             Width = 200,
             Height = 20,
             Font = new Font("Segoe UI", 8.5f),
@@ -94,29 +95,75 @@ public class ManagerMainForm : Form
             BackColor = Color.Transparent
         };
 
+        var companyBadge = Theme.CreateCompanyBadge(top: 68, left: 16, width: 208, height: 34);
+
         logoArea.Controls.Add(accent);
         logoArea.Controls.Add(lblBrand);
         logoArea.Controls.Add(lblBrandSub);
+        logoArea.Controls.Add(companyBadge);
 
-        var secMgmt = CreateSectionLabel("MANAGEMENT", 100);
+        sidebar.Controls.Add(logoArea);
 
-        btnDashboard = Theme.CreateNavButton("Dashboard", 128);
+        int nextTop = 126;
+        var secMgmt = CreateSectionLabel("MANAGEMENT", nextTop);
+        sidebar.Controls.Add(secMgmt);
+        nextTop += 28;
+
+        btnDashboard = Theme.CreateNavButton("Dashboard", nextTop);
         btnDashboard.Click += (s, e) => { SetActive(btnDashboard); ShowDashboard(); };
+        sidebar.Controls.Add(btnDashboard);
+        nextTop += 44;
 
-        btnCertificates = Theme.CreateNavButton("Certificates", 172);
+        // Destruction of storage devices & certificate generation is available to Manager in all subscription plans
+        btnCertificates = Theme.CreateNavButton("Certificates", nextTop);
         btnCertificates.Click += (s, e) => { SetActive(btnCertificates); ShowCertificates(); };
+        sidebar.Controls.Add(btnCertificates);
+        nextTop += 44;
 
-        btnInventory = Theme.CreateNavButton("Inventory", 216);
-        btnInventory.Click += (s, e) => { SetActive(btnInventory); ShowInventory(); };
+        if (CurrentSession.HasModuleAccess("Inventory"))
+        {
+            btnInventory = Theme.CreateNavButton("Inventory", nextTop);
+            btnInventory.Click += (s, e) => { SetActive(btnInventory); ShowInventory(); };
+            sidebar.Controls.Add(btnInventory);
+            nextTop += 44;
+        }
 
-        btnAttendancePayroll = Theme.CreateNavButton("Attendance / Payroll", 260);
-        btnAttendancePayroll.Click += (s, e) => { SetActive(btnAttendancePayroll); ShowAttendancePayroll(); };
 
-        btnFinance = Theme.CreateNavButton("Company Finance", 304);
-        btnFinance.Click += (s, e) => { SetActive(btnFinance); ShowFinance(); };
+        if (CurrentSession.HasModuleAccess("Procurement"))
+        {
+            btnProcurement = Theme.CreateNavButton("Procurement", nextTop);
+            btnProcurement.Click += (s, e) => { SetActive(btnProcurement); ShowProcurement(); };
+            sidebar.Controls.Add(btnProcurement);
+            nextTop += 44;
+        }
 
-        btnProcurement = Theme.CreateNavButton("Procurement", 348);
-        btnProcurement.Click += (s, e) => { SetActive(btnProcurement); ShowProcurement(); };
+        if (CurrentSession.HasModuleAccess("HR"))
+        {
+            btnAttendancePayroll = Theme.CreateNavButton("Staff & Payroll", nextTop);
+            btnAttendancePayroll.Click += (s, e) => { SetActive(btnAttendancePayroll); ShowAttendancePayroll(); };
+            sidebar.Controls.Add(btnAttendancePayroll);
+            nextTop += 44;
+        }
+
+        if (CurrentSession.HasModuleAccess("Finance"))
+        {
+            btnFinance = Theme.CreateNavButton("Company Finance", nextTop);
+            btnFinance.Click += (s, e) => { SetActive(btnFinance); ShowFinance(); };
+            sidebar.Controls.Add(btnFinance);
+            nextTop += 44;
+        }
+
+        if (CurrentSession.HasModuleAccess("HR") && !string.Equals(CurrentSession.CompanyCode, "GREEN", StringComparison.OrdinalIgnoreCase))
+        {
+            var secSelf = CreateSectionLabel("MY ACCOUNT", nextTop);
+            sidebar.Controls.Add(secSelf);
+            nextTop += 28;
+
+            btnMyPortal = Theme.CreateNavButton("My Portal", nextTop);
+            btnMyPortal.Click += (s, e) => { SetActive(btnMyPortal); ShowMyPortal(); };
+            sidebar.Controls.Add(btnMyPortal);
+            nextTop += 44;
+        }
 
         userArea = new Panel
         {
@@ -136,26 +183,30 @@ public class ManagerMainForm : Form
 
         var lblUser = new Label
         {
-            Text = "Manager",
+            Text = !string.IsNullOrWhiteSpace(CurrentSession.FullName) ? CurrentSession.FullName : "Manager",
             Left = 60,
             Top = 14,
             Width = 160,
             Height = 20,
             Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
             ForeColor = Color.White,
-            BackColor = Color.Transparent
+            BackColor = Color.Transparent,
+            AutoEllipsis = true
         };
 
         var lblRole = new Label
         {
-            Text = "Facility Manager",
+            Text = !string.IsNullOrWhiteSpace(CurrentSession.BranchName) 
+                ? $"{CurrentSession.BranchName} • Manager ({CurrentSession.CompanyCode})" 
+                : $"Manager ({CurrentSession.CompanyCode})",
             Left = 60,
             Top = 34,
             Width = 160,
             Height = 18,
             Font = new Font("Segoe UI", 8f),
             ForeColor = Theme.SidebarText,
-            BackColor = Color.Transparent
+            BackColor = Color.Transparent,
+            AutoEllipsis = true
         };
         var btnLogout = new Button
         {
@@ -176,15 +227,7 @@ public class ManagerMainForm : Form
         userArea.Controls.Add(lblUser);
         userArea.Controls.Add(lblRole);
         userArea.Controls.Add(btnLogout);
-        sidebar.Controls.Add(logoArea);
-        sidebar.Controls.Add(secMgmt);
-        sidebar.Controls.Add(btnDashboard);
-        sidebar.Controls.Add(btnCertificates);
-        sidebar.Controls.Add(btnInventory);
-        sidebar.Controls.Add(btnAttendancePayroll);
-        sidebar.Controls.Add(btnFinance);
-        sidebar.Controls.Add(btnProcurement);
-        sidebar.Controls.Add(userArea);
+        Theme.AttachCloudSyncBadge(sidebar, userArea);
 
         Controls.Add(sidebar);
         SetActive(btnDashboard);
@@ -201,19 +244,26 @@ public class ManagerMainForm : Form
             Height = 20,
             Font = Theme.NavSectionFont,
             ForeColor = Theme.SidebarSection,
-            BackColor = Color.Transparent
+            BackColor = Color.Transparent,
+            UseMnemonic = false
         };
     }
 
-    private void SetActive(Button btn)
+    private void SetActive(Button? btn)
     {
-        foreach (var b in new[] { btnDashboard, btnCertificates, btnInventory, btnAttendancePayroll, btnFinance, btnProcurement })
+        foreach (var b in new[] { btnDashboard, btnCertificates, btnInventory, btnAttendancePayroll, btnFinance, btnProcurement, btnMyPortal })
         {
-            b.BackColor = Theme.SidebarBg;
-            b.ForeColor = Theme.SidebarText;
+            if (b != null)
+            {
+                b.BackColor = Theme.SidebarBg;
+                b.ForeColor = Theme.SidebarText;
+            }
         }
-        btn.BackColor = Theme.SidebarActive;
-        btn.ForeColor = Theme.SidebarTextActive;
+        if (btn != null)
+        {
+            btn.BackColor = Theme.SidebarActive;
+            btn.ForeColor = Theme.SidebarTextActive;
+        }
         _activeNav = btn;
     }
 
@@ -247,11 +297,28 @@ public class ManagerMainForm : Form
 
     private void ShowDashboard()
     {
-        EmbedForm(new ManagerDashboardForm { ShowInTaskbar = false });
+        var dash = new ManagerDashboardForm { ShowInTaskbar = false };
+        dash.NavigateRequested = target =>
+        {
+            if (target == "Certificates")
+            {
+                ShowCertificates();
+            }
+            else if (target == "Inventory")
+            {
+                if (btnInventory != null)
+                {
+                    SetActive(btnInventory);
+                    ShowInventory();
+                }
+            }
+        };
+        EmbedForm(dash);
     }
 
-    private void ShowCertificates()
+    public void ShowCertificates()
     {
+        SetActive(btnCertificates);
         EmbedForm(new CertificateOfDestructionForm { ShowInTaskbar = false });
     }
 
@@ -274,5 +341,10 @@ public class ManagerMainForm : Form
     private void ShowProcurement()
     {
         EmbedForm(new ProcurementForm { ShowInTaskbar = false });
+    }
+
+    private void ShowMyPortal()
+    {
+        EmbedForm(new EmployeePortalForm { ShowInTaskbar = false });
     }
 }

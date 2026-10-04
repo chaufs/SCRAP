@@ -9,8 +9,8 @@ namespace SCRAP.API.Controllers
     [Route("api/[controller]")]
     public class RawInventoryController : ControllerBase
     {
-        private readonly MasterErpDbContext _db;
-        public RawInventoryController(MasterErpDbContext db) => _db = db;
+        private readonly TenantErpDbContext _db;
+        public RawInventoryController(TenantErpDbContext db) => _db = db;
 
         [HttpGet]
         public async Task<IActionResult> GetAll() =>

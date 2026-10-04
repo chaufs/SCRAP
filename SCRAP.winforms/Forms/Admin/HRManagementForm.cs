@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
@@ -98,7 +98,10 @@ namespace SCRAP.winforms.Forms.Admin
                 MultiSelect = false
             };
             Theme.StyleGrid(dgvEmployees);
+            dgvEmployees.AutoGenerateColumns = false;
             BuildColumns();
+
+            dgvEmployees.CellFormatting += DgvEmployees_CellFormatting;
             dgvEmployees.CellContentClick += DgvEmployees_CellContentClick;
             cardList.Controls.Add(dgvEmployees);
 
@@ -118,15 +121,113 @@ namespace SCRAP.winforms.Forms.Admin
         private void BuildColumns()
         {
             dgvEmployees.Columns.Clear();
-            dgvEmployees.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = nameof(Employee.EmployeeCode), HeaderText = "Code", Width = 100 });
-dgvEmployees.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = nameof(Employee.FirstName), HeaderText = "First Name", Width = 140 });
-dgvEmployees.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = nameof(Employee.LastName), HeaderText = "Last Name", Width = 140 });
-            dgvEmployees.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = nameof(Employee.Position), HeaderText = "Position", Width = 160 });
-            dgvEmployees.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = nameof(Employee.Department), HeaderText = "Department", Width = 130 });
-            dgvEmployees.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = nameof(Employee.Status), HeaderText = "Status", Width = 110 });
-            dgvEmployees.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = nameof(Employee.DateHired), HeaderText = "Date Hired", Width = 130 });
-            dgvEmployees.Columns.Add(new DataGridViewButtonColumn { Name = "colManage", HeaderText = "", Text = "Manage", UseColumnTextForButtonValue = true, Width = 90 });
-            dgvEmployees.Columns.Add(new DataGridViewButtonColumn { Name = "colArchive", HeaderText = "", Text = "Archive", UseColumnTextForButtonValue = true, Width = 90 });
+            dgvEmployees.AutoGenerateColumns = false;
+
+            dgvEmployees.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                DataPropertyName = nameof(Employee.EmployeeCode),
+                HeaderText = "Code",
+                Width = 100,
+                MinimumWidth = 90
+            });
+
+            dgvEmployees.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "colFullName",
+                HeaderText = "Full Name",
+                Width = 170,
+                MinimumWidth = 130
+            });
+
+            dgvEmployees.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                DataPropertyName = nameof(Employee.Department),
+                HeaderText = "Department",
+                Width = 120,
+                MinimumWidth = 100
+            });
+
+            dgvEmployees.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                DataPropertyName = nameof(Employee.Position),
+                HeaderText = "Position",
+                Width = 180,
+                MinimumWidth = 140
+            });
+
+            dgvEmployees.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                DataPropertyName = nameof(Employee.ContactNumber),
+                HeaderText = "Contact",
+                Width = 120,
+                MinimumWidth = 100
+            });
+
+            dgvEmployees.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                DataPropertyName = nameof(Employee.City),
+                HeaderText = "City",
+                Width = 110,
+                MinimumWidth = 90
+            });
+
+            dgvEmployees.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "colStatus",
+                HeaderText = "Status",
+                Width = 90,
+                MinimumWidth = 80
+            });
+
+            dgvEmployees.Columns.Add(new DataGridViewButtonColumn
+            {
+                Name = "colManage",
+                HeaderText = "",
+                Text = "Manage",
+                UseColumnTextForButtonValue = true,
+                Width = 90
+            });
+
+            dgvEmployees.Columns.Add(new DataGridViewButtonColumn
+            {
+                Name = "colToggleStatus",
+                HeaderText = "System Access",
+                Width = 115
+            });
+        }
+
+        private void DgvEmployees_CellFormatting(object? sender, DataGridViewCellFormattingEventArgs e)
+        {
+            if (e.RowIndex < 0 || e.RowIndex >= dgvEmployees.Rows.Count) return;
+            if (dgvEmployees.Rows[e.RowIndex].DataBoundItem is not Employee emp) return;
+
+            var colName = dgvEmployees.Columns[e.ColumnIndex].Name;
+
+            if (colName == "colFullName")
+            {
+                string middle = string.IsNullOrWhiteSpace(emp.MiddleName) ? "" : $"{emp.MiddleName} ";
+                e.Value = $"{emp.FirstName} {middle}{emp.LastName}";
+                e.FormattingApplied = true;
+            }
+            else if (colName == "colStatus")
+            {
+                e.Value = emp.Status == EmploymentStatus.Active ? "Active" : "Inactive";
+                if (emp.Status == EmploymentStatus.Active)
+                {
+                    e.CellStyle!.ForeColor = ColorTranslator.FromHtml("#00AD4C");
+                    e.CellStyle!.Font = new Font(dgvEmployees.Font, FontStyle.Bold);
+                }
+                else
+                {
+                    e.CellStyle!.ForeColor = ColorTranslator.FromHtml("#DC2626");
+                }
+                e.FormattingApplied = true;
+            }
+            else if (colName == "colToggleStatus")
+            {
+                e.Value = emp.Status == EmploymentStatus.Active ? "Deactivate" : "Activate";
+                e.FormattingApplied = true;
+            }
         }
 
         private Panel MakeCard()
@@ -162,7 +263,9 @@ dgvEmployees.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = name
                 if (res.IsSuccessStatusCode)
                 {
                     _employees = await res.Content.ReadFromJsonAsync<List<Employee>>(ApiConfig.JsonOptions) ?? new();
+                    dgvEmployees.AutoGenerateColumns = false;
                     dgvEmployees.DataSource = null;
+                    dgvEmployees.AutoGenerateColumns = false;
                     dgvEmployees.DataSource = _employees;
                 }
                 else
@@ -179,7 +282,6 @@ dgvEmployees.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = name
 
             await LoadSummary();
         }
-
 
         private async Task LoadSummary()
         {
@@ -202,7 +304,6 @@ dgvEmployees.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = name
             }
         }
 
-
         private async void DgvEmployees_CellContentClick(object? sender, DataGridViewCellEventArgs e)
         {
             if (e.RowIndex < 0) return;
@@ -212,35 +313,46 @@ dgvEmployees.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = name
 
             if (columnName == "colManage")
             {
-                MessageBox.Show($"Manage screen for {emp.FirstName} {emp.LastName} — hook up an edit dialog here next.",
-                    "S.C.R.A.P", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                // TODO: open an edit dialog pre-filled with emp's data (position, department, pay, status, and
-                // account fields if emp.UserId != null), PUT to api/Employees/{id} on save.
-            }
-            else if (columnName == "colArchive")
-            {
-                var action = emp.Status == EmploymentStatus.Active ? "archive" : "reactivate";
-                var confirm = MessageBox.Show($"Are you sure you want to {action} {emp.FirstName} {emp.LastName}?", "Confirm",
-                    MessageBoxButtons.YesNo, MessageBoxIcon.Question);
-                if (confirm != DialogResult.Yes) return;
-
-                var newStatus = emp.Status == EmploymentStatus.Active ? EmploymentStatus.Resigned : EmploymentStatus.Active;
-                try
+                using var dialog = new EmployeeEditDialog(emp);
+                if (dialog.ShowDialog(this) == DialogResult.OK)
                 {
-                    var res = await ApiConfig.Http.PostAsync($"api/Employees/{emp.Id}/deactivate?status={newStatus}", null);
-                    if (res.IsSuccessStatusCode)
-                    {
-                        await LoadEmployees();
-                    }
-                    else
-                    {
-                        MessageBox.Show("Action failed: " + res.StatusCode, "S.C.R.A.P",
-                            MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    }
+                    await LoadEmployees();
                 }
-                catch (Exception ex)
+            }
+            else if (columnName == "colToggleStatus")
+            {
+                bool isActive = (emp.Status == EmploymentStatus.Active);
+                string prompt = isActive
+                    ? $"Are you sure you want to DEACTIVATE {emp.FirstName} {emp.LastName}?\n\nDeactivating this employee will immediately revoke their access and prevent them from logging into the system."
+                    : $"Are you sure you want to ACTIVATE {emp.FirstName} {emp.LastName}?\n\nThis will restore their active status and re-enable their system access.";
+
+                var result = MessageBox.Show(prompt, "S.C.R.A.P — Employee System Access",
+                    MessageBoxButtons.YesNo,
+                    isActive ? MessageBoxIcon.Warning : MessageBoxIcon.Question);
+
+                if (result == DialogResult.Yes)
                 {
-                    MessageBox.Show("Error: " + ex.Message, "S.C.R.A.P", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    try
+                    {
+                        var res = await ApiConfig.Http.PostAsync($"api/Employees/{emp.Id}/toggle-status", null);
+                        if (res.IsSuccessStatusCode)
+                        {
+                            string resultMsg = isActive
+                                ? $"{emp.FirstName} {emp.LastName} is now Inactive. System access has been REVOKED."
+                                : $"{emp.FirstName} {emp.LastName} is now Active. System access has been RESTORED.";
+                            MessageBox.Show(resultMsg, "S.C.R.A.P", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            await LoadEmployees();
+                        }
+                        else
+                        {
+                            var err = await res.Content.ReadAsStringAsync();
+                            MessageBox.Show("Failed to update status: " + err, "S.C.R.A.P", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show("Error: " + ex.Message, "S.C.R.A.P", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
                 }
             }
         }

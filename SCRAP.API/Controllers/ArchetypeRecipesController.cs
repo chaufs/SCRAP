@@ -9,8 +9,8 @@ namespace SCRAP.API.Controllers
     [Route("api/[controller]")]
     public class ArchetypeRecipesController : ControllerBase
     {
-        private readonly MasterErpDbContext _db;
-        public ArchetypeRecipesController(MasterErpDbContext db)
+        private readonly TenantErpDbContext _db;
+        public ArchetypeRecipesController(TenantErpDbContext db)
         {
             _db = db;
         }

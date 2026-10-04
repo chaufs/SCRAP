@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
+using System.Linq;
 using System.Net.Http.Json;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -10,11 +11,14 @@ using SCRAP.domain.entities;
 namespace SCRAP.winforms.Forms
 {
     /// <summary>
-    /// Manager dashboard: pending destructions, certificates issued, stock snapshot.
+    /// Manager dashboard: pending destructions, certificates issued, stock snapshot, and visual analytics.
     /// </summary>
     [DesignerCategory("Code")]
     public class ManagerDashboardForm : Form
     {
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public Action<string>? NavigateRequested { get; set; }
+
         private Label lblTitle = null!;
         private Label lblSubtitle = null!;
         private Button btnRefresh = null!;
@@ -25,6 +29,9 @@ namespace SCRAP.winforms.Forms
         private Label valPending = null!;
         private Label valCertificates = null!;
         private Label valInventory = null!;
+
+        private DonutChartControl chartMethods = null!;
+        private BarChartControl chartInventory = null!;
 
         private Label lblRecent = null!;
         private Panel cardHistory = null!;
@@ -56,7 +63,7 @@ namespace SCRAP.winforms.Forms
 
             lblSubtitle = new Label
             {
-                Text = "Destruction certificates and facility overview",
+                Text = "Destruction certificates, facility operations, and analytics",
                 Left = 32,
                 Top = 64,
                 Width = 480,
@@ -76,16 +83,31 @@ namespace SCRAP.winforms.Forms
             Theme.StyleOutlineButton(btnRefresh);
             btnRefresh.Click += async (s, e) => await LoadData();
 
-            cardPending = MakeStatCard("PENDING DESTRUCTIONS", "—", Theme.Blue);
+            cardPending = MakeStatCard("PENDING DESTRUCTIONS", "—", Theme.Blue, () => NavigateRequested?.Invoke("Certificates"));
             valPending = (Label)cardPending.Tag!;
 
-            cardCertificates = MakeStatCard("CERTIFICATES ISSUED", "—", Theme.Green);
+            cardCertificates = MakeStatCard("CERTIFICATES ISSUED", "—", Theme.Green, () => NavigateRequested?.Invoke("Certificates"));
             valCertificates = (Label)cardCertificates.Tag!;
 
-            cardInventory = MakeStatCard("ACTIVE INVENTORY", "—", Theme.Blue);
+            cardInventory = MakeStatCard("ACTIVE INVENTORY", "—", Theme.Blue, () => NavigateRequested?.Invoke("Inventory"));
             valInventory = (Label)cardInventory.Tag!;
 
-            lblRecent = Theme.CreateSectionTitle("Recent Certificates", 32, 260);
+            chartMethods = new DonutChartControl
+            {
+                Title = "Destruction Methods",
+                Subtitle = "Breakdown by destruction technique",
+                CenterLabel = "Certs"
+            };
+
+            chartInventory = new BarChartControl
+            {
+                Title = "Branch Inventory by Category",
+                Subtitle = "Stock available in this facility",
+                ValueSuffix = " units",
+                IsHorizontal = true
+            };
+
+            lblRecent = Theme.CreateSectionTitle("Recent Certificates", 32, 400);
 
             cardHistory = new Panel
             {
@@ -99,7 +121,9 @@ namespace SCRAP.winforms.Forms
             };
 
             dgvRecent = new DataGridView { Dock = DockStyle.Fill };
+            dgvRecent.DataError += (s, e) => { e.ThrowException = false; };
             Theme.StyleGrid(dgvRecent);
+            dgvRecent.CellDoubleClick += (s, e) => NavigateRequested?.Invoke("Certificates");
             cardHistory.Controls.Add(dgvRecent);
 
             Controls.Add(lblTitle);
@@ -108,6 +132,8 @@ namespace SCRAP.winforms.Forms
             Controls.Add(cardPending);
             Controls.Add(cardCertificates);
             Controls.Add(cardInventory);
+            Controls.Add(chartMethods);
+            Controls.Add(chartInventory);
             Controls.Add(lblRecent);
             Controls.Add(cardHistory);
 
@@ -115,45 +141,68 @@ namespace SCRAP.winforms.Forms
             LayoutControls();
         }
 
-        private Panel MakeStatCard(string label, string value, Color accent)
+        private Panel MakeStatCard(string label, string value, Color accent, Action? onClick = null)
         {
             var card = new Panel
             {
                 Width = 240,
-                Height = 120,
+                Height = 100,
                 BackColor = Theme.White
             };
 
             var bar = new Panel
             {
-                Height = 3,
+                Height = 4,
                 Dock = DockStyle.Top,
                 BackColor = accent
-            };
-
-            var val = new Label
-            {
-                Text = value,
-                Left = 20,
-                Top = 28,
-                Width = 200,
-                Height = 40,
-                Font = Theme.StatValueFont,
-                ForeColor = Theme.DarkText,
-                BackColor = Color.Transparent
             };
 
             var lbl = new Label
             {
                 Text = label,
                 Left = 20,
-                Top = 78,
-                Width = 200,
-                Height = 22,
+                Top = 14,
+                Width = Math.Max(50, card.Width - 40),
+                Height = 18,
                 Font = Theme.StatLabelFont,
                 ForeColor = Theme.MutedText,
-                BackColor = Color.Transparent
+                BackColor = Color.Transparent,
+                UseMnemonic = false
             };
+
+            var val = new Label
+            {
+                Text = value,
+                Left = 20,
+                Top = 34,
+                Width = Math.Max(50, card.Width - 40),
+                Height = 42,
+                Font = Theme.StatValueFont,
+                ForeColor = Theme.DarkText,
+                BackColor = Color.Transparent,
+                TextAlign = ContentAlignment.MiddleRight,
+                UseMnemonic = false
+            };
+
+            card.Resize += (s, e) =>
+            {
+                int w = Math.Max(10, card.Width - 40);
+                lbl.Width = w;
+                val.Width = w;
+            };
+
+            if (onClick != null)
+            {
+                card.Cursor = Cursors.Hand;
+                lbl.Cursor = Cursors.Hand;
+                val.Cursor = Cursors.Hand;
+                bar.Cursor = Cursors.Hand;
+
+                card.Click += (s, e) => onClick();
+                lbl.Click += (s, e) => onClick();
+                val.Click += (s, e) => onClick();
+                bar.Click += (s, e) => onClick();
+            }
 
             card.Controls.Add(bar);
             card.Controls.Add(val);
@@ -169,8 +218,9 @@ namespace SCRAP.winforms.Forms
 
             int gap = 20;
             int startX = 32;
-            int y = 110;
-            int cardW = Math.Max(200, (ClientSize.Width - 64 - gap * 2) / 3);
+            int y = 105;
+            int availableW = Math.Max(200, ClientSize.Width - 64);
+            int cardW = (availableW - (gap * 2)) / 3;
 
             cardPending.Left = startX;
             cardPending.Top = y;
@@ -184,17 +234,42 @@ namespace SCRAP.winforms.Forms
             cardInventory.Top = y;
             cardInventory.Width = cardW;
 
-            lblRecent.Top = 260;
+            int chartY = y + 115;
+            int chartH = 200;
+            int chartW = (availableW - gap) / 2;
+
+            chartMethods.Left = startX;
+            chartMethods.Top = chartY;
+            chartMethods.Width = chartW;
+            chartMethods.Height = chartH;
+
+            chartInventory.Left = startX + chartW + gap;
+            chartInventory.Top = chartY;
+            chartInventory.Width = chartW;
+            chartInventory.Height = chartH;
+
+            int tableY = chartY + chartH + 16;
+            lblRecent.Top = tableY;
             lblRecent.Left = 32;
 
             cardHistory.Left = 32;
-            cardHistory.Top = 292;
-            cardHistory.Width = Math.Max(400, ClientSize.Width - 64);
-            cardHistory.Height = Math.Max(180, ClientSize.Height - 320);
+            cardHistory.Top = tableY + 28;
+            cardHistory.Width = availableW;
+            cardHistory.Height = Math.Max(160, ClientSize.Height - cardHistory.Top - 24);
 
             if (dgvRecent.Columns.Count > 0)
                 Theme.FillColumnsToWidth(dgvRecent);
         }
+
+        private static string FormatMethod(DestructionMethod method) => method switch
+        {
+            DestructionMethod.PhysicalShredding => "Physical Shredding",
+            DestructionMethod.Crushing => "Crushing",
+            DestructionMethod.Degaussing => "Degaussing",
+            DestructionMethod.Incineration => "Incineration",
+            DestructionMethod.Disintegration => "Disintegration",
+            _ => method.ToString()
+        };
 
         private void ConfigureCertificateColumns()
         {
@@ -204,20 +279,18 @@ namespace SCRAP.winforms.Forms
                 {
                     ["Id"] = ("ID", 60),
                     ["CertificateNumber"] = ("Certificate #", 200),
-                    ["DestructionDateTime"] = ("Destroyed On", 170),
+                    ["DestructionDate"] = ("Destroyed On", 170),
                     ["OrganizationName"] = ("Organization", 200),
                     ["ProviderName"] = ("Provider", 180),
-                    ["Method"] = ("Method", 140),
+                    ["Method"] = ("Method", 150),
                     ["SecurityStandard"] = ("Standard", 160),
                     ["VerifiedByName"] = ("Verified By", 160)
-                },
-                "Items", "OrganizationAddress", "ProviderAddress", "SoftwareToolName",
-                "SoftwareToolVersion", "ManagerUserId", "VerifiedDate", "Notes");
+                });
         }
 
         private async Task LoadData()
         {
-            await Task.WhenAll(LoadPendingCount(), LoadCertificates(), LoadInventoryCount());
+            await Task.WhenAll(LoadPendingCount(), LoadCertificates(), LoadInventoryCount(), LoadCategoryStock());
         }
 
         private async Task LoadPendingCount()
@@ -248,9 +321,29 @@ namespace SCRAP.winforms.Forms
                     var data = await res.Content.ReadFromJsonAsync<List<CertificateOfDestruction>>(ApiConfig.JsonOptions)
                                ?? new List<CertificateOfDestruction>();
                     valCertificates.Text = data.Count.ToString("N0");
-                    dgvRecent.DataSource = data;
+
+                    var rows = data.ConvertAll(c => new
+                    {
+                        c.Id,
+                        c.CertificateNumber,
+                        DestructionDate = c.DestructionDateTime.ToLocalTime().ToString("yyyy-MM-dd HH:mm"),
+                        c.OrganizationName,
+                        c.ProviderName,
+                        Method = FormatMethod(c.Method),
+                        c.SecurityStandard,
+                        c.VerifiedByName
+                    });
+
+                    dgvRecent.DataSource = rows;
                     if (dgvRecent.Columns.Count > 0)
                         ConfigureCertificateColumns();
+
+                    // Populate Methods Donut Chart
+                    var methodPoints = data
+                        .GroupBy(c => FormatMethod(c.Method))
+                        .Select(g => new ChartDataPoint(g.Key, g.Count()))
+                        .ToList();
+                    chartMethods.SetData(methodPoints);
                 }
             }
             catch (Exception ex)
@@ -276,6 +369,30 @@ namespace SCRAP.winforms.Forms
             {
                 valInventory.Text = "—";
             }
+        }
+
+        private async Task LoadCategoryStock()
+        {
+            try
+            {
+                var res = await ApiConfig.Http.GetAsync("api/Inventory/summary-by-category");
+                if (res.IsSuccessStatusCode)
+                {
+                    var data = await res.Content.ReadFromJsonAsync<List<CategorySummaryDto>>() ?? new();
+                    var points = data.Select(c => new ChartDataPoint(c.CategoryName, c.AvailableCount)).ToList();
+                    chartInventory.SetData(points);
+                }
+            }
+            catch
+            {
+                chartInventory.SetData(new List<ChartDataPoint>());
+            }
+        }
+
+        private class CategorySummaryDto
+        {
+            public string CategoryName { get; set; } = string.Empty;
+            public int AvailableCount { get; set; }
         }
 
         private class DashboardSummary

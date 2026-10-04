@@ -5,7 +5,8 @@ namespace SCRAP.domain.entities
     public enum FinanceTransactionType
     {
         Income,
-        Deduction
+        Deduction,
+        Expense
     }
 
     public class CompanyFinanceTransaction
@@ -18,5 +19,9 @@ namespace SCRAP.domain.entities
         public string Description { get; set; } = string.Empty;
         public string? SourceReference { get; set; }
         public int? RecordedByUserId { get; set; }
+        public int BranchId { get; set; }
+
+        // Navigation
+        public Branch? Branch { get; set; }
     }
 }
